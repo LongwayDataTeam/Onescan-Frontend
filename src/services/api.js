@@ -33,9 +33,26 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('auth-storage');
-      window.location.href = '/login';
+      // Only auto-logout for specific 401 errors, not all
+      const errorDetail = error.response?.data?.detail || '';
+      
+      // Don't auto-logout for Redis connection issues or temporary errors
+      if (errorDetail.includes('Too many connections') || 
+          errorDetail.includes('Redis') ||
+          errorDetail.includes('Connection') ||
+          errorDetail.includes('temporary')) {
+        console.warn('Temporary authentication issue, not logging out:', errorDetail);
+        return Promise.reject(error);
+      }
+      
+      // Only logout for actual authentication failures
+      if (errorDetail.includes('Could not validate credentials') ||
+          errorDetail.includes('Token expired') ||
+          errorDetail.includes('Invalid token')) {
+        console.log('Authentication failed, logging out user');
+        localStorage.removeItem('auth-storage');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -65,6 +82,7 @@ export const authAPI = {
     }
   },
   getCurrentUser: () => api.get('/auth/me'),
+  validateToken: () => api.get('/auth/validate-token'),
   createUser: (userData) => api.post('/auth/users', userData),
   getUsers: () => api.get('/auth/users'),
   updateUser: (userId, userData) => api.put(`/auth/users/${userId}`, userData),
@@ -131,6 +149,8 @@ export const dataAPI = {
   getTrackingDetails: (trackingId) => api.get(`/data/tracking/${trackingId}`),
   getUploadHistory: () => api.get('/data/upload-history'),
   getAllUploadedData: (page = 1, pageSize = 100) => api.get(`/data/all-data?page=${page}&page_size=${pageSize}`),
+  searchAllData: (searchTerm = "", statusFilter = "", courierFilter = "", page = 1, pageSize = 100) => 
+    api.get(`/data/search?search_term=${encodeURIComponent(searchTerm)}&status_filter=${encodeURIComponent(statusFilter)}&courier_filter=${encodeURIComponent(courierFilter)}&page=${page}&page_size=${pageSize}`),
   clearAllData: () => api.delete('/data/clear-all-data'),
   clearAllScanningData: () => api.delete('/data/clear-all-scanning-data'),
   storeScanningData: (data) => api.post('/data/store-scanning-data', data),
@@ -145,6 +165,8 @@ export const dataAPI = {
   redisDataTypesInspection: () => api.get('/data/debug/redis-data-types'),
   redisConnectionTest: () => api.get('/data/debug/redis-connection-test'),
   debugRedisData: () => api.get('/data/debug/redis-data-structure'),
+  // Get global data statistics (independent of filters)
+  getGlobalStatistics: () => api.get('/data/statistics'),
 };
 
 export const logsAPI = {

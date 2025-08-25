@@ -45,6 +45,9 @@ const useAuthStore = create(
             error: null,
           });
           
+          // Start periodic token validation
+          get().startTokenValidation();
+          
           return { success: true };
         } catch (error) {
           const errorMessage = error.response?.data?.detail || 'Login failed';
@@ -84,17 +87,46 @@ const useAuthStore = create(
           // Set token in API service
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
-          const response = await api.get('/auth/me');
-          const userData = response.data.data;
-          
-          set({
-            isAuthenticated: true,
-            user: userData,
-            error: null,
-          });
-          
-          return true;
+          // First try to validate token (less aggressive)
+          try {
+            await authAPI.validateToken();
+            // Token is valid, get user data
+            const response = await api.get('/auth/me');
+            const userData = response.data.data;
+            
+            set({
+              isAuthenticated: true,
+              user: userData,
+              error: null,
+            });
+            
+            return true;
+          } catch (validationError) {
+            // If validation fails, try the full user check
+            const response = await api.get('/auth/me');
+            const userData = response.data.data;
+            
+            set({
+              isAuthenticated: true,
+              user: userData,
+              error: null,
+            });
+            
+            return true;
+          }
         } catch (error) {
+          // Only logout for actual authentication failures, not temporary issues
+          const errorDetail = error.response?.data?.detail || '';
+          
+          if (errorDetail.includes('Too many connections') || 
+              errorDetail.includes('Redis') ||
+              errorDetail.includes('Connection') ||
+              errorDetail.includes('temporary')) {
+            console.warn('Temporary authentication issue, keeping user logged in:', errorDetail);
+            // Keep user logged in for temporary issues
+            return true;
+          }
+          
           // Token is invalid, clear auth state
           set({
             isAuthenticated: false,
@@ -116,6 +148,26 @@ const useAuthStore = create(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      // Start periodic token validation
+      startTokenValidation: () => {
+        // Validate token every 4 hours (before the 5-hour expiry)
+        const interval = setInterval(async () => {
+          const { token, isAuthenticated } = get();
+          if (token && isAuthenticated) {
+            try {
+              await authAPI.validateToken();
+              console.log('✅ Token validation successful');
+            } catch (error) {
+              console.warn('⚠️ Token validation failed, but keeping user logged in:', error);
+              // Don't logout immediately, let the next API call handle it
+            }
+          }
+        }, 4 * 60 * 60 * 1000); // 4 hours
+        
+        // Return cleanup function
+        return () => clearInterval(interval);
       },
 
       // Permission checks

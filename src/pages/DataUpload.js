@@ -18,7 +18,12 @@ import {
   Download,
   Eye,
   EyeOff,
-  Table
+  Table,
+  TrendingUp,
+  Package,
+  Truck,
+  XCircle,
+  Upload as UploadIcon
 } from 'lucide-react';
 import DataDisplayTable from '../components/DataDisplayTable';
 
@@ -27,6 +32,16 @@ const DataUpload = () => {
   const [dataRecords, setDataRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  
+  // KPI state
+  const [kpiMetrics, setKpiMetrics] = useState({
+    total_upload: 0,
+    labelled: 0,
+    packing: 0,
+    dispatch_pending: 0,
+    cancelled: 0
+  });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,6 +59,8 @@ const DataUpload = () => {
   const [cache, setCache] = useState(new Map());
   const [cacheTimestamps, setCacheTimestamps] = useState(new Map());
   const [isCacheEnabled, setIsCacheEnabled] = useState(true);
+  const [useLargeDatasetMode, setUseLargeDatasetMode] = useState(false);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   
   // UI state
   const [showFilters, setShowFilters] = useState(false);
@@ -58,6 +75,7 @@ const DataUpload = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [lastFetchTime, setLastFetchTime] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Refs
   const fileInputRef = useRef();
@@ -98,738 +116,752 @@ const DataUpload = () => {
     const newTimestamps = new Map();
     
     cache.forEach((value, key) => {
-      const timestamp = cacheTimestamps.get(key);
-      if (timestamp && now - timestamp < CACHE_DURATION) {
+      if (now - cacheTimestamps.get(key) < CACHE_DURATION) {
         newCache.set(key, value);
-        newTimestamps.set(key, timestamp);
+        newTimestamps.set(key, cacheTimestamps.get(key));
       }
     });
     
     setCache(newCache);
     setCacheTimestamps(newTimestamps);
-  }, [cache, cacheTimestamps]);
+  }, [cache, cacheTimestamps, CACHE_DURATION]);
   
-  // Load data with intelligent caching
-  const loadDataRecords = useCallback(async (page = 1, size = pageSize, forceRefresh = false) => {
-    const key = `data_${page}_${size}_${searchTerm}_${statusFilter}_${courierFilter}_${channelFilter}`;
-    
-    // Check cache first
-    if (!forceRefresh && isCacheValid(key)) {
-      const cachedData = getCachedData(key);
-      if (cachedData) {
-        console.log('🚀 Using cached data for:', key);
-        setDataRecords(cachedData.records || []);
-        setCurrentPage(cachedData.page || 1);
-        setTotalPages(cachedData.total_pages || 1);
-        setTotalCount(cachedData.total_count || 0);
-        setHasMoreData(cachedData.has_next_page || false);
-        setLastFetchTime(Date.now());
-        return;
-      }
-    }
-    
+  // Fetch data with optimization
+  const fetchData = useCallback(async (page = 1, useCache = true) => {
     try {
+            console.log('🚀 Starting fetchData with:', { page, useCache, pageSize, statusFilter, courierFilter, channelFilter, searchTerm });
     setLoading(true);
       setError(null);
       
-      console.log('🔍 Fetching fresh data for:', key);
-      
-      let response;
-      if (searchTerm || statusFilter || courierFilter || channelFilter) {
-        response = await dataAPI.searchAllData(
-          searchTerm, 
-          statusFilter, 
-          courierFilter, 
-          page, 
-          size
-        );
-      } else {
-        response = await dataAPI.getAllUploadedData(page, size);
+      // Show loading message for long operations
+      if (page === 1) {
+        setLoadingMessage('🔄 Loading data from Redis (this may take 1-2 minutes for large datasets)...');
       }
       
-      if (response.data?.ok && response.data?.data) {
-        const data = response.data.data;
+      // Check cache first for first 100 records
+      if (useCache && page === 1 && pageSize <= 100) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData && isCacheValid(cacheKey)) {
+          console.log('✅ Using cached data for first page');
+          setDataRecords(cachedData.records);
+          setTotalCount(cachedData.total_count);
+          setTotalPages(cachedData.total_pages);
+          setKpiMetrics(cachedData.kpi_metrics || kpiMetrics);
+          setError(''); // Clear any previous errors
+          setLoadingMessage(''); // Clear loading message
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Choose endpoint based on manual toggle or dataset size
+      const useLargeDatasetEndpoint = useLargeDatasetMode || totalCount > 10000 || page > 10;
+      const endpoint = useLargeDatasetEndpoint ? 'large-dataset' : 'optimized-data';
+      
+      console.log(`📡 Fetching from API endpoint: /data/${endpoint} (totalCount: ${totalCount}, page: ${page}, manual mode: ${useLargeDatasetMode})`);
+      
+      // Fetch from appropriate API endpoint
+      const response = useLargeDatasetEndpoint 
+        ? await dataAPI.getLargeDatasetData({
+            page,
+            page_size: pageSize,
+            status_filter: statusFilter || undefined,
+            courier_filter: courierFilter || undefined,
+            channel_filter: channelFilter || undefined,
+            search_term: searchTerm || undefined
+          })
+        : await dataAPI.getOptimizedData({
+            page,
+            page_size: pageSize,
+            status_filter: statusFilter || undefined,
+            courier_filter: courierFilter || undefined,
+            channel_filter: channelFilter || undefined,
+            search_term: searchTerm || undefined
+          });
+      
+      console.log('📥 API Response received:', response);
+      console.log('📊 Response structure:', {
+        status: response.status,
+        data: response.data,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : 'No data'
+      });
+      
+      // Check if response.data exists and has the expected structure
+      if (response.data && response.data.ok) {
+        const { records, total_count, total_pages, kpi_metrics } = response.data.data || {};
+        console.log('✅ Data parsed successfully:', { 
+          recordsCount: records?.length, 
+          total_count, 
+          total_pages, 
+          hasKpis: !!kpi_metrics 
+        });
         
-        setDataRecords(data.records || []);
-        setCurrentPage(data.page || 1);
-        setTotalPages(data.total_pages || 1);
-        setTotalCount(data.total_count || 0);
-        setHasMoreData(data.has_next_page || false);
+        if (records && Array.isArray(records)) {
+          setDataRecords(records);
+          setTotalCount(total_count || 0);
+          setTotalPages(total_pages || 0);
+          setKpiMetrics(kpi_metrics || {});
         setLastFetchTime(Date.now());
         
-        // Cache the successful response
-        setCachedData(key, data);
-        
-        console.log('✅ Data loaded successfully:', {
-          records: data.records?.length || 0,
-          page: data.page,
-          totalPages: data.total_pages,
-          totalCount: data.total_count
-        });
+          // Clear any previous errors and loading messages
+          setError('');
+          setLoadingMessage('');
+          
+          // Cache first 100 records
+          if (page === 1 && pageSize <= 100 && records.length > 0) {
+            console.log('💾 Caching data for future use');
+            setCachedData(cacheKey, {
+              records,
+              total_count,
+              total_pages,
+              kpi_metrics
+            });
+          }
+        } else {
+          console.error('❌ No records in response data');
+          setError('No records found in response');
+          setLoadingMessage(''); // Clear loading message on error
+        }
       } else {
-        throw new Error(response.data?.message || 'Failed to load data');
+        console.error('❌ API Error:', response.data?.message || 'Unknown error');
+        setError(response.data?.message || 'Failed to fetch data');
+        setLoadingMessage(''); // Clear loading message on error
       }
-    } catch (error) {
-      console.error('❌ Error loading data:', error);
-      setError(error.message || 'Failed to load data');
-      setDataRecords([]);
+    } catch (err) {
+      console.error('💥 Error fetching data:', err);
+      console.error('💥 Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response?.data
+      });
+      setError(err.message || 'Failed to fetch data');
+      setLoadingMessage(''); // Clear loading message on error
     } finally {
       setLoading(false);
+      setLoadingMessage(''); // Clear loading message when done
+      setIsSearching(false); // Clear searching state when done
     }
-  }, [searchTerm, statusFilter, courierFilter, channelFilter, pageSize, isCacheValid, getCachedData, setCachedData]);
-  
-  // Load global statistics
-  const loadGlobalStatistics = useCallback(async () => {
-    try {
-      const response = await dataAPI.getGlobalStatistics();
-      if (response.data?.ok && response.data?.data) {
-        setTotalCount(response.data.data.total_count || 0);
-      }
-    } catch (error) {
-      console.error('Failed to load global statistics:', error);
-    }
-  }, []);
-  
-  // Load upload history
-  const loadUploadHistory = useCallback(async () => {
-    try {
-      setUploadHistoryLoading(true);
-      const response = await dataAPI.getUploadHistory();
-      if (response.data?.ok && response.data?.data?.uploads) {
-        setUploadHistory(response.data.data.uploads);
-      }
-    } catch (error) {
-      console.error('Failed to load upload history:', error);
-    } finally {
-      setUploadHistoryLoading(false);
-    }
-  }, []);
+  }, [pageSize, statusFilter, courierFilter, channelFilter, searchTerm, getCachedData, isCacheValid, setCachedData, kpiMetrics]);
   
   // Debounced search
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeoutId;
-      return (searchValue, statusValue, courierValue, channelValue) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          setSearchTerm(searchValue);
-          setStatusFilter(statusValue);
-          setCourierFilter(courierValue);
-          setChannelFilter(channelValue);
-          setCurrentPage(1);
-          loadDataRecords(1, pageSize, true);
-        }, DEBOUNCE_DELAY);
-      };
-    })(),
-    [loadDataRecords, pageSize]
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== '' && searchTerm.length >= 2) {
+        console.log('🔍 Search triggered for:', searchTerm);
+        setIsSearching(true);
+        setCurrentPage(1);
+        fetchData(1, false);
+      } else if (searchTerm === '' || searchTerm.length < 2) {
+        // Clear search or too short - reset to first page with no filters
+        console.log('🔍 Search cleared or too short, resetting to default view');
+        setIsSearching(false);
+        setCurrentPage(1);
+        fetchData(1, true);
+      }
+    }, DEBOUNCE_DELAY);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]); // Remove fetchData dependency to prevent infinite loops
   
-  // Handle search input
-  const handleSearchChange = useCallback((e) => {
-    const value = e.target.value;
-    debouncedSearch(value, statusFilter, courierFilter, channelFilter);
-  }, [debouncedSearch, statusFilter, courierFilter, channelFilter]);
+  // Initial data fetch
+  useEffect(() => {
+    fetchData(1, true);
+  }, []);
+  
+  // Close delete menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDeleteMenu && !event.target.closest('.delete-menu-container')) {
+        setShowDeleteMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDeleteMenu]);
+  
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    setSelectedFile(file);
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await dataAPI.uploadData(formData);
+      
+      if (response.ok) {
+        toast.success('File uploaded successfully!');
+        setSelectedFile(null);
+        // Refresh data after upload
+        fetchData(1, false);
+      } else {
+        toast.error(response.message || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
   
   // Handle filter changes
-  const handleFilterChange = useCallback((type, value) => {
-    let newSearchTerm = searchTerm;
-    let newStatusFilter = statusFilter;
-    let newCourierFilter = courierFilter;
-    let newChannelFilter = channelFilter;
+  const handleFilterChange = (filterType, value) => {
+    setCurrentPage(1);
     
-    switch (type) {
+    switch (filterType) {
       case 'status':
-        newStatusFilter = value;
+        setStatusFilter(value);
         break;
       case 'courier':
-        newCourierFilter = value;
+        setCourierFilter(value);
         break;
       case 'channel':
-        newChannelFilter = value;
+        setChannelFilter(value);
         break;
       default:
         break;
     }
-    
-    debouncedSearch(newSearchTerm, newStatusFilter, newCourierFilter, newChannelFilter);
-  }, [searchTerm, statusFilter, courierFilter, channelFilter, debouncedSearch]);
+  };
   
-  // Clear all filters
-  const clearFilters = useCallback(() => {
-    setSearchTerm('');
+  // Apply filters
+  const applyFilters = () => {
+    setCurrentPage(1);
+    fetchData(1, false);
+  };
+  
+  // Clear filters
+  const clearFilters = () => {
     setStatusFilter('');
     setCourierFilter('');
     setChannelFilter('');
+    setSearchTerm('');
     setCurrentPage(1);
-    loadDataRecords(1, pageSize, true);
-  }, [loadDataRecords, pageSize]);
+    fetchData(1, true);
+  };
   
-  // Pagination functions
-  const goToPage = useCallback((page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-      loadDataRecords(page, pageSize);
-    }
-  }, [totalPages, loadDataRecords, pageSize]);
-  
-  const goToNextPage = useCallback(() => {
-    if (currentPage < totalPages) {
-      goToPage(currentPage + 1);
-    }
-  }, [currentPage, totalPages, goToPage]);
-  
-  const goToPrevPage = useCallback(() => {
-    if (currentPage > 1) {
-      goToPage(currentPage - 1);
-    }
-  }, [currentPage, goToPage]);
-  
-  const changePageSize = useCallback((newSize) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-    loadDataRecords(1, newSize, true);
-  }, [loadDataRecords]);
-  
-  // Preload next page for smooth pagination
-  const preloadNextPage = useCallback(async () => {
-    if (currentPage < totalPages && !isLoadingMore && hasMoreData) {
-      setIsLoadingMore(true);
-      try {
-        const nextPageKey = `data_${currentPage + 1}_${pageSize}_${searchTerm}_${statusFilter}_${courierFilter}_${channelFilter}`;
-        
-        if (!isCacheValid(nextPageKey)) {
-          let response;
-          if (searchTerm || statusFilter || courierFilter || channelFilter) {
-            response = await dataAPI.searchAllData(
-              searchTerm, 
-              statusFilter, 
-              courierFilter, 
-              currentPage + 1, 
-              pageSize
-            );
-          } else {
-            response = await dataAPI.getAllUploadedData(currentPage + 1, pageSize);
-          }
-          
-          if (response.data?.ok && response.data?.data) {
-            setCachedData(nextPageKey, response.data.data);
-            console.log('🚀 Preloaded next page:', currentPage + 1);
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to preload next page:', error);
-    } finally {
-        setIsLoadingMore(false);
-    }
-    }
-  }, [currentPage, totalPages, pageSize, searchTerm, statusFilter, courierFilter, channelFilter, isLoadingMore, hasMoreData, isCacheValid, setCachedData]);
-
-  // File upload handling
-  const handleFileSelect = useCallback((event) => {
-    const file = event.target.files[0];
-    if (file && file.type === 'text/csv') {
-      setSelectedFile(file);
-    } else if (file) {
-      toast.error('Please select a valid CSV file');
-      setSelectedFile(null);
-    }
-  }, []);
-
-  const handleUpload = useCallback(async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file first');
+  // Delete all data
+  const handleDeleteAllData = async () => {
+    if (!window.confirm('⚠️ WARNING: This will permanently delete ALL data from the system!\n\nThis action cannot be undone. Are you sure you want to continue?')) {
       return;
     }
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const response = await dataAPI.uploadData(formData);
-
-      if (response.data?.ok) {
-        toast.success('File uploaded successfully!');
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        // Refresh data and clear cache
-        setCache(new Map());
-        setCacheTimestamps(new Map());
-          await loadUploadHistory();
-        await loadDataRecords(1, pageSize, true);
-        await loadGlobalStatistics();
-      } else {
-        toast.error(response.data?.message || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(`Upload failed: ${error.response?.data?.message || error.message || 'Network error'}`);
-    } finally {
-      setUploading(false);
+    
+    if (!window.confirm('🚨 FINAL CONFIRMATION: You are about to delete ALL 12,000+ records!\n\nType "DELETE" to confirm:')) {
+      return;
     }
-  }, [selectedFile, loadUploadHistory, loadDataRecords, loadGlobalStatistics, pageSize]);
-  
-  // Clear all data
-  const handleClearData = useCallback(async () => {
-    if (!window.confirm('Are you sure you want to clear ALL data? This action cannot be undone!')) {
+    
+    const userInput = prompt('Type "DELETE" to confirm deletion of all data:');
+    if (userInput !== 'DELETE') {
+      toast.error('Deletion cancelled. Data remains safe.');
       return;
     }
     
     try {
+      setLoading(true);
+      setError('🔄 Deleting all data from system...');
+      
       const response = await dataAPI.clearAllData();
-      if (response.data?.ok) {
-        toast.success('All data cleared successfully');
+      
+      if (response.ok) {
+        toast.success('✅ All data deleted successfully!');
+        setError('');
         setDataRecords([]);
         setTotalCount(0);
         setTotalPages(0);
         setCurrentPage(1);
+        setKpiMetrics({
+          total_upload: 0,
+          labelled: 0,
+          packing: 0,
+          dispatch_pending: 0,
+          cancelled: 0
+        });
+        // Clear cache
         setCache(new Map());
         setCacheTimestamps(new Map());
       } else {
-        toast.error(response.data?.message || 'Failed to clear data');
+        toast.error(response.message || 'Failed to delete data');
+        setError('Failed to delete data');
       }
-    } catch (error) {
-      console.error('Clear data error:', error);
-      toast.error(`Failed to clear data: ${error.response?.data?.message || error.message || 'Network error'}`);
+    } catch (err) {
+      console.error('Delete data error:', err);
+      toast.error('Failed to delete data. Please try again.');
+      setError('Failed to delete data');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
   
-  // Helper functions
-  const formatCurrency = useCallback((amount) => {
-    if (!amount || amount === 0) return '₹0.00';
-    return `₹${parseFloat(amount).toFixed(2)}`;
-  }, []);
-  
-  const formatTimestamp = useCallback((timestamp) => {
-    if (!timestamp) return 'N/A';
+  // Delete scanning data only
+  const handleDeleteScanningData = async () => {
+    if (!window.confirm('⚠️ WARNING: This will delete all scanning/labeling data!\n\nThis action cannot be undone. Are you sure you want to continue?')) {
+      return;
+    }
+    
     try {
-      return new Date(timestamp).toLocaleString();
-    } catch {
-      return 'Invalid Date';
-    }
-  }, []);
-
-  const getDisplayStatus = useCallback((record) => {
-    const status = record.status;
-    if (!status || status === 'unlabeled' || status === 'shipped') return 'Unlabeled';
-    if (status === 'label_scanned') return 'Label Scanned';
-    if (status === 'packing_pending_scanned') return 'Packing Pending';
-    if (status === 'packing_scanned') return 'Packing Completed';
-    if (status === 'dispatch_pending_scanned') return 'Dispatch Pending';
-    if (status === 'dispatch_scanned') return 'Dispatch Completed';
-    if (status === 'cancelled') return 'Cancelled';
-    return status;
-  }, []);
-
-  const getStatusColor = useCallback((status) => {
-    switch (status) {
-      case 'Unlabeled':
-        return 'bg-gray-100 text-gray-800';
-      case 'Label Scanned':
-        return 'bg-blue-100 text-blue-800';
-      case 'Packing Pending':
-        return 'bg-orange-100 text-orange-800';
-      case 'Packing Completed':
-        return 'bg-green-100 text-green-800';
-      case 'Dispatch Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Dispatch Completed':
-        return 'bg-purple-100 text-purple-800';
-      case 'Cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  }, []);
-
-  // Load initial data
-  useEffect(() => {
-    loadDataRecords(1, pageSize);
-    loadGlobalStatistics();
-    loadUploadHistory();
-  }, [loadDataRecords, loadGlobalStatistics, loadUploadHistory, pageSize]);
-  
-  // Preload next page when approaching end
-  useEffect(() => {
-    if (currentPage / totalPages > PRELOAD_THRESHOLD) {
-      preloadNextPage();
-    }
-  }, [currentPage, totalPages, preloadNextPage]);
-  
-  // Auto-refresh data every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Date.now() - lastFetchTime > 5 * 60 * 1000) {
-        loadDataRecords(currentPage, pageSize, true);
-      }
-    }, 60000); // Check every minute
-    
-    return () => clearInterval(interval);
-  }, [lastFetchTime, currentPage, pageSize, loadDataRecords]);
-  
-  // Memoized statistics
-  const statistics = useMemo(() => {
-    if (!dataRecords.length) return null;
-    
-    const stats = {
-      total: dataRecords.length,
-      statuses: {},
-      couriers: {},
-      channels: {}
-    };
-    
-    dataRecords.forEach(record => {
-      const status = getDisplayStatus(record);
-      const courier = record.courier || 'Unknown';
-      const channel = record.channel_name || record.channel_id || 'Unknown';
+      setLoading(true);
+      setError('🔄 Deleting scanning data...');
       
-      stats.statuses[status] = (stats.statuses[status] || 0) + 1;
-      stats.couriers[courier] = (stats.couriers[courier] || 0) + 1;
-      stats.channels[channel] = (stats.channels[channel] || 0) + 1;
-    });
+      const response = await dataAPI.clearAllScanningData();
+      
+      if (response.ok) {
+        toast.success('✅ Scanning data deleted successfully!');
+        setError('');
+        // Refresh data to show updated counts
+        fetchData(1, true);
+      } else {
+        toast.error(response.message || 'Failed to delete scanning data');
+        setError('Failed to delete scanning data');
+      }
+    } catch (err) {
+      console.error('Delete scanning data error:', err);
+      toast.error('Failed to delete scanning data. Please try again.');
+      setError('Failed to delete scanning data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Clear cache only
+  const handleClearCache = async () => {
+    if (!window.confirm('⚠️ This will clear all cached data!\n\nPerformance may be slower on next load. Continue?')) {
+      return;
+    }
     
-    return stats;
-  }, [dataRecords, getDisplayStatus]);
+    try {
+      setLoading(true);
+      setError('🔄 Clearing cache...');
+      
+      // Clear local cache
+      setCache(new Map());
+      setCacheTimestamps(new Map());
+      
+      // Clear backend cache if API available
+      try {
+        await dataAPI.clearAllData(); // This might clear backend cache too
+      } catch (e) {
+        console.log('Backend cache clear not available, local cache cleared');
+      }
+      
+      toast.success('✅ Cache cleared successfully!');
+      setError('');
+      
+      // Refresh data
+      fetchData(1, true);
+    } catch (err) {
+      console.error('Clear cache error:', err);
+      toast.error('Failed to clear cache. Please try again.');
+      setError('Failed to clear cache');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle pagination
+  const handlePageChange = (page) => {
+      setCurrentPage(page);
+    fetchData(page, page === 1);
+  };
+  
+  // KPI Card Component
+  const KPICard = ({ title, value, icon: Icon, color, description }) => (
+    <div className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${color}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">{description}</p>
+        </div>
+        <div className={`p-3 rounded-full ${color.replace('border-l-', 'bg-').replace('-500', '-100')}`}>
+          <Icon className={`w-6 h-6 ${color.replace('border-l-', 'text-').replace('-500', '-600')}`} />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <Database className="w-8 h-8 mr-3 text-blue-600" />
-                Data Management
-              </h1>
-              <p className="mt-2 text-gray-600">Upload, view, and manage your warehouse data with lightning-fast performance</p>
+              <h1 className="text-2xl font-bold text-gray-900">Data Upload & Management</h1>
+              <p className="text-gray-600">Upload, view, and manage your data with real-time KPIs</p>
         </div>
-
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => setIsCacheEnabled(!isCacheEnabled)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isCacheEnabled 
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                    : 'bg-red-100 text-red-700 hover:bg-red-200'
-                }`}
+                onClick={() => setShowStats(!showStats)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
-                {isCacheEnabled ? 'Cache: ON' : 'Cache: OFF'}
+                <BarChart3 className="w-4 h-4 mr-2" />
+                {showStats ? 'Hide KPIs' : 'Show KPIs'}
               </button>
-              
               <button
-                onClick={() => loadDataRecords(currentPage, pageSize, true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                onClick={() => setShowDataDisplay(!showDataDisplay)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
+                <Table className="w-4 h-4 mr-2" />
+                {showDataDisplay ? 'Hide Table' : 'Show Table'}
               </button>
               </div>
                 </div>
               </div>
 
-        {/* Quick Stats */}
-        {showStats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Database className="w-6 h-6 text-blue-600" />
+        {/* Upload Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <UploadIcon className="w-5 h-5 mr-2" />
+            Upload Section
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* File Upload */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={uploading}
+              />
+              
+              <div className="space-y-4">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto" />
+                <div>
+                  <p className="text-lg font-medium text-gray-900">
+                    {uploading ? 'Uploading...' : 'Upload Data File'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    CSV, Excel files supported
+                  </p>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Records</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalCount.toLocaleString()}</p>
-              </div>
+                
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'Uploading...' : 'Choose File'}
+                </button>
+                
+                {selectedFile && (
+                  <p className="text-sm text-gray-600">
+                    Selected: {selectedFile.name}
+                  </p>
+                )}
                 </div>
               </div>
             
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <BarChart3 className="w-6 h-6 text-green-600" />
-                  </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Current Page</p>
-                  <p className="text-2xl font-bold text-gray-900">{dataRecords.length}</p>
-              </div>
+            {/* Upload Status */}
+            <div className="space-y-4">
+              <h3 className="text-md font-medium text-gray-900">Upload Status</h3>
+              {uploading ? (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Processing file...</span>
                 </div>
-              </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-purple-600" />
+              ) : (
+                <div className="text-gray-500">
+                  No file being processed
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Pages</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalPages}</p>
+              )}
+              
+              <div className="text-sm text-gray-600">
+                <p>• Supported formats: CSV, Excel (.xlsx, .xls)</p>
+                <p>• Maximum file size: 10MB</p>
+                <p>• Data will be validated before import</p>
               </div>
             </div>
           </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Settings className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Cache Status</p>
-                  <p className="text-2xl font-bold text-gray-900">{cache.size}</p>
-                  </div>
-              </div>
+        </div>
+        
+        {/* KPI Section */}
+        {showStats && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2" />
+              KPI Section
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <KPICard
+                title="Total Upload"
+                value={kpiMetrics.total_upload}
+                icon={Database}
+                color="border-l-blue-500"
+                description="Total records uploaded"
+              />
+              <KPICard
+                title="Labelled"
+                value={kpiMetrics.labelled}
+                icon={FileText}
+                color="border-l-green-500"
+                description="Records with labels"
+              />
+              <KPICard
+                title="Packing"
+                value={kpiMetrics.packing}
+                icon={Package}
+                color="border-l-yellow-500"
+                description="In packing process"
+              />
+              <KPICard
+                title="Dispatch Pending"
+                value={kpiMetrics.dispatch_pending}
+                icon={Truck}
+                color="border-l-purple-500"
+                description="Ready for dispatch"
+              />
+              <KPICard
+                title="Cancelled"
+                value={kpiMetrics.cancelled}
+                icon={XCircle}
+                color="border-l-red-500"
+                description="Cancelled records"
+              />
             </div>
           </div>
         )}
 
-        {/* Upload Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Upload className="w-5 h-5 mr-2 text-blue-600" />
-              File Upload
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Filter className="w-5 h-5 mr-2" />
+              Filters
             </h2>
-                      <button
-              onClick={() => setShowStats(!showStats)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-              {showStats ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                  </div>
-          
-          <div className="flex items-center space-x-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors"
-            />
-                <button
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                >
-                  {uploading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload
-                </>
-                  )}
-                </button>
-
-            <button
-              onClick={handleClearData}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear All
-            </button>
-                  </div>
-                </div>
-                
-        {/* Search and Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Search className="w-5 h-5 mr-2 text-green-600" />
-              Search & Filters
-            </h3>
               <button
               onClick={() => setShowFilters(!showFilters)}
-              className="text-gray-400 hover:text-gray-600 transition-colors flex items-center"
+              className="text-sm text-blue-600 hover:text-blue-800"
             >
-              <Filter className="w-4 h-4 mr-2" />
-              {showFilters ? 'Hide' : 'Show'} Filters
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
                 </button>
           </div>
 
-          <div className="flex flex-wrap gap-4 mb-4">
-            <div className="flex-1 min-w-64">
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                 ref={searchInputRef}
                   type="text"
-                placeholder="Search by tracking ID, order ID, G-Code, SKU..."
-                onChange={handleSearchChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
+                    placeholder="Search tracking ID, order ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
               
-            {showFilters && (
-              <>
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
                   <select
                   value={statusFilter}
                   onChange={(e) => handleFilterChange('status', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">All Statuses</option>
-                  <option value="unlabeled">Unlabeled (including shipped)</option>
+                  <option value="">All Status</option>
+                  <option value="Unlabeled">Unlabeled</option>
                   <option value="label_scanned">Label Scanned</option>
-                  <option value="packing_pending_scanned">Packing Pending</option>
-                  <option value="packing_scanned">Packing Completed</option>
-                                      <option value="dispatch_pending_scanned">Dispatch Pending</option>
-                  <option value="dispatch_scanned">Dispatch Completed</option>
+                  <option value="packing">Packing</option>
+                  <option value="dispatch">Dispatch</option>
                   <option value="cancelled">Cancelled</option>
                   </select>
+              </div>
               
+              {/* Courier Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Courier
+                </label>
                 <select
                   value={courierFilter}
                   onChange={(e) => handleFilterChange('courier', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Couriers</option>
                   <option value="DTDC">DTDC</option>
                   <option value="BlueDart">BlueDart</option>
                   <option value="FedEx">FedEx</option>
+                  <option value="Amazon">Amazon</option>
                 </select>
+              </div>
                 
+              {/* Channel Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Channel
+                </label>
                 <select
                   value={channelFilter}
                   onChange={(e) => handleFilterChange('channel', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Channels</option>
                   <option value="Amazon">Amazon</option>
                   <option value="Flipkart">Flipkart</option>
                   <option value="Myntra">Myntra</option>
+                  <option value="Nykaa">Nykaa</option>
                 </select>
-              </>
-            )}
-            
-            {(searchTerm || statusFilter || courierFilter || channelFilter) && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Clear All
-              </button>
-            )}
               </div>
-          
-          {/* Active Filters Display */}
-          {(searchTerm || statusFilter || courierFilter || channelFilter) && (
-            <div className="flex flex-wrap gap-2">
-              {searchTerm && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center">
-                  Search: {searchTerm}
-                <button
-                    onClick={() => handleSearchChange({ target: { value: '' } })}
-                    className="ml-2 text-blue-600 hover:text-blue-800"
-                  >
-                    ×
-                </button>
-                </span>
-              )}
-              {statusFilter && (
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center">
-                  Status: {statusFilter}
-                  <button
-                    onClick={() => handleFilterChange('status', '')}
-                    className="ml-2 text-green-600 hover:text-green-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {courierFilter && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm flex items-center">
-                  Courier: {courierFilter}
-                  <button
-                    onClick={() => handleFilterChange('courier', '')}
-                    className="ml-2 text-purple-600 hover:text-purple-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {channelFilter && (
-                <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm flex items-center">
-                  Channel: {channelFilter}
-                  <button
-                    onClick={() => handleFilterChange('channel', '')}
-                    className="ml-2 text-orange-600 hover:text-orange-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
             </div>
           )}
+          
+          {/* Filter Actions */}
+          <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                <button
+                  onClick={applyFilters}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Apply Filters
+                </button>
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                >
+                  Clear All
+                </button>
+                <div className="relative delete-menu-container">
+                  <button
+                    onClick={() => setShowDeleteMenu(!showDeleteMenu)}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Data</span>
+                  </button>
+                  
+                  {showDeleteMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setShowDeleteMenu(false);
+                            handleDeleteAllData();
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                        >
+                          🗑️ Delete All Data
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDeleteMenu(false);
+                            handleDeleteScanningData();
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
+                        >
+                          📱 Delete Scanning Data
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDeleteMenu(false);
+                            handleClearCache();
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+                        >
+                          🗄️ Clear Cache
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+          
+            <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <span>Cache:</span>
+                <button
+                  onClick={() => setIsCacheEnabled(!isCacheEnabled)}
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    isCacheEnabled 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {isCacheEnabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span>Large Dataset:</span>
+                  <button
+                  onClick={() => setUseLargeDatasetMode(!useLargeDatasetMode)}
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    useLargeDatasetMode 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {useLargeDatasetMode ? 'Enabled' : 'Disabled'}
+                  </button>
+              </div>
+            </div>
+          </div>
           </div>
 
-        {/* Enhanced Data Display Section */}
+        {/* Data Table Section */}
         {showDataDisplay && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <Table className="w-5 h-5 mr-2 text-indigo-600" />
-                Advanced Data Display & Analytics
-              </h3>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Table className="w-5 h-5 mr-2" />
+                Data Table
+              </h2>
+              
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">
+                  Total: {totalCount.toLocaleString()} records
+                </span>
               <button
-                onClick={() => setShowDataDisplay(!showDataDisplay)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={() => fetchData(currentPage, false)}
+                  disabled={loading}
+                  className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
               >
-                {showDataDisplay ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
+              </div>
             </div>
             
+            {/* Data Table */}
             <DataDisplayTable 
-              apiEndpoint="/data-display"
-              refreshInterval={30000}
-              enableVirtualScrolling={true}
+              data={dataRecords}
+              loading={loading}
+              error={error}
+              loadingMessage={loadingMessage}
+              isSearching={isSearching}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              onPageChange={handlePageChange}
+              onPageSizeChange={setPageSize}
             />
-          </div>
-        )}
-
-        {/* Upload History */}
-        {uploadHistory.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-purple-600" />
-              Upload History
-            </h3>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Success</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Errors</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {uploadHistory.map((upload, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatTimestamp(upload.timestamp)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {upload.filename || 'Unknown'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {upload.total_rows || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                        {upload.success_count || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                        {upload.error_count || 0}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Pagination Info */}
+            <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+              <span>
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} results
+              </span>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
         </div>
           </div>
         )}

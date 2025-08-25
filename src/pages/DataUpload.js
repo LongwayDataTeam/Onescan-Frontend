@@ -23,6 +23,8 @@ import {
   Package,
   Truck,
   XCircle,
+  Clock,
+  CheckCircle,
   Upload as UploadIcon
 } from 'lucide-react';
 import DataDisplayTable from '../components/DataDisplayTable';
@@ -39,9 +41,13 @@ const DataUpload = () => {
     total_upload: 0,
     labelled: 0,
     packing: 0,
+    packing_pending: 0,  // New: Packing Pending
     dispatch_pending: 0,
+    dispatch: 0,  // New: Dispatch
     cancelled: 0
   });
+  const [refreshingKPIs, setRefreshingKPIs] = useState(false);
+  const [kpiLastUpdated, setKpiLastUpdated] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,10 +156,10 @@ const DataUpload = () => {
           setError(''); // Clear any previous errors
           setLoadingMessage(''); // Clear loading message
           setLoading(false);
-          return;
-        }
+        return;
       }
-      
+    }
+    
       // Choose endpoint based on manual toggle or dataset size
       const useLargeDatasetEndpoint = useLargeDatasetMode || totalCount > 10000 || page > 10;
       const endpoint = useLargeDatasetEndpoint ? 'large-dataset' : 'optimized-data';
@@ -163,7 +169,7 @@ const DataUpload = () => {
       // Fetch from appropriate API endpoint
       const response = useLargeDatasetEndpoint 
         ? await dataAPI.getLargeDatasetData({
-            page,
+          page, 
             page_size: pageSize,
             status_filter: statusFilter || undefined,
             courier_filter: courierFilter || undefined,
@@ -218,7 +224,7 @@ const DataUpload = () => {
               kpi_metrics
             });
           }
-        } else {
+      } else {
           console.error('❌ No records in response data');
           setError('No records found in response');
           setLoadingMessage(''); // Clear loading message on error
@@ -363,7 +369,7 @@ const DataUpload = () => {
       toast.error('Deletion cancelled. Data remains safe.');
       return;
     }
-    
+
     try {
       setLoading(true);
       setError('🔄 Deleting all data from system...');
@@ -430,6 +436,32 @@ const DataUpload = () => {
     }
   };
   
+  // Refresh KPI metrics
+  const handleRefreshKPIs = async () => {
+    try {
+      setRefreshingKPIs(true);
+      setError('🔄 Refreshing KPI metrics...');
+      
+      // Clear KPI cache on backend
+      await dataAPI.clearKpiCache();
+      
+      // Refresh data to get new KPIs
+      await fetchData(1, true);
+      
+      // Set last updated timestamp
+      setKpiLastUpdated(new Date());
+      
+      toast.success('✅ KPI metrics refreshed successfully!');
+      setError('');
+    } catch (err) {
+      console.error('Refresh KPIs error:', err);
+      toast.error('Failed to refresh KPIs. Please try again.');
+      setError('Failed to refresh KPIs');
+    } finally {
+      setRefreshingKPIs(false);
+    }
+  };
+  
   // Clear cache only
   const handleClearCache = async () => {
     if (!window.confirm('⚠️ This will clear all cached data!\n\nPerformance may be slower on next load. Continue?')) {
@@ -477,7 +509,7 @@ const DataUpload = () => {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-gray-900">{(value || 0).toLocaleString()}</p>
           <p className="text-xs text-gray-500">{description}</p>
         </div>
         <div className={`p-3 rounded-full ${color.replace('border-l-', 'bg-').replace('-500', '-100')}`}>
@@ -544,8 +576,8 @@ const DataUpload = () => {
                   <p className="text-sm text-gray-500">
                     CSV, Excel files supported
                   </p>
-                </div>
-                
+              </div>
+            
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
@@ -573,27 +605,37 @@ const DataUpload = () => {
               ) : (
                 <div className="text-gray-500">
                   No file being processed
-                </div>
+              </div>
               )}
               
               <div className="text-sm text-gray-600">
                 <p>• Supported formats: CSV, Excel (.xlsx, .xls)</p>
                 <p>• Maximum file size: 10MB</p>
                 <p>• Data will be validated before import</p>
+                </div>
+                  </div>
               </div>
             </div>
-          </div>
-        </div>
-        
+
         {/* KPI Section */}
         {showStats && (
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2" />
-              KPI Section
+          <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2" />
+                KPI Section
             </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <button
+                onClick={handleRefreshKPIs}
+                className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                disabled={refreshingKPIs}
+                      >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshingKPIs ? 'animate-spin' : ''}`} />
+                🔄 Refresh KPIs
+                      </button>
+                  </div>
+          
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
               <KPICard
                 title="Total Upload"
                 value={kpiMetrics.total_upload}
@@ -616,11 +658,25 @@ const DataUpload = () => {
                 description="In packing process"
               />
               <KPICard
+                title="Packing Pending"
+                value={kpiMetrics.packing_pending}
+                icon={Clock}
+                color="border-l-orange-500"
+                description="Waiting for packing"
+              />
+              <KPICard
                 title="Dispatch Pending"
                 value={kpiMetrics.dispatch_pending}
                 icon={Truck}
                 color="border-l-purple-500"
                 description="Ready for dispatch"
+              />
+              <KPICard
+                title="Dispatch"
+                value={kpiMetrics.dispatch}
+                icon={CheckCircle}
+                color="border-l-emerald-500"
+                description="Successfully dispatched"
               />
               <KPICard
                 title="Cancelled"
@@ -629,10 +685,10 @@ const DataUpload = () => {
                 color="border-l-red-500"
                 description="Cancelled records"
               />
-            </div>
-          </div>
+                  </div>
+                </div>
         )}
-
+                
         {/* Filters Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between mb-4">
@@ -734,12 +790,12 @@ const DataUpload = () => {
                 >
                   Apply Filters
                 </button>
-                <button
-                  onClick={clearFilters}
+              <button
+                onClick={clearFilters}
                   className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                >
-                  Clear All
-                </button>
+              >
+                Clear All
+              </button>
                 <div className="relative delete-menu-container">
                   <button
                     onClick={() => setShowDeleteMenu(!showDeleteMenu)}
@@ -752,7 +808,7 @@ const DataUpload = () => {
                   {showDeleteMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
                       <div className="py-1">
-                        <button
+                <button
                           onClick={() => {
                             setShowDeleteMenu(false);
                             handleDeleteAllData();
@@ -760,8 +816,8 @@ const DataUpload = () => {
                           className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50"
                         >
                           🗑️ Delete All Data
-                        </button>
-                        <button
+                </button>
+                  <button
                           onClick={() => {
                             setShowDeleteMenu(false);
                             handleDeleteScanningData();
@@ -769,8 +825,8 @@ const DataUpload = () => {
                           className="block w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
                         >
                           📱 Delete Scanning Data
-                        </button>
-                        <button
+                  </button>
+                  <button
                           onClick={() => {
                             setShowDeleteMenu(false);
                             handleClearCache();
@@ -778,7 +834,7 @@ const DataUpload = () => {
                           className="block w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
                         >
                           🗄️ Clear Cache
-                        </button>
+                  </button>
                       </div>
                     </div>
                   )}
@@ -788,7 +844,7 @@ const DataUpload = () => {
             <div className="flex items-center space-x-4 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
                 <span>Cache:</span>
-                <button
+                  <button
                   onClick={() => setIsCacheEnabled(!isCacheEnabled)}
                   className={`px-2 py-1 rounded text-xs font-medium ${
                     isCacheEnabled 
@@ -797,8 +853,8 @@ const DataUpload = () => {
                   }`}
                 >
                   {isCacheEnabled ? 'Enabled' : 'Disabled'}
-                </button>
-              </div>
+                  </button>
+            </div>
               
               <div className="flex items-center space-x-2">
                 <span>Large Dataset:</span>

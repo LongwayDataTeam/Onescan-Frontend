@@ -32,6 +32,10 @@ const Dispatch = () => {
   const trackingIdInputRef = useRef(null);
   const pendingTrackingIdInputRef = useRef(null);
 
+  // Performance monitoring state
+  const [lastScanTime, setLastScanTime] = useState(null);
+  const [performanceMode, setPerformanceMode] = useState('ultra-fast');
+
   // Listen for clear data events from other components
   useEffect(() => {
     const handleClearData = (event) => {
@@ -234,6 +238,24 @@ const Dispatch = () => {
     return () => clearTimeout(timer);
   }, [pendingTrackingId]);
 
+  // Pre-warm dispatch indexes for ultra-fast scanning
+  const handlePrewarmDispatch = async () => {
+    try {
+      toast.info('🚀 Pre-warming dispatch indexes for ultra-fast scanning...');
+      
+      const response = await scanAPI.prewarmDispatch();
+      
+      if (response.data?.ok) {
+        toast.success('✅ Dispatch indexes pre-warmed successfully! Scanning will be ultra-fast now.');
+      } else {
+        toast.error('Failed to pre-warm dispatch indexes');
+      }
+    } catch (error) {
+      console.error('Pre-warm dispatch error:', error);
+      toast.error('Failed to pre-warm dispatch indexes');
+    }
+  };
+
   // Handle Dispatch Scanning
   const handleDispatchScan = async () => {
     if (!trackingId.trim()) {
@@ -299,14 +321,27 @@ const Dispatch = () => {
         return;
       }
       
-      // Call real dispatch scan API
+      // Call real dispatch scan API with performance monitoring
+      const startTime = performance.now();
       const response = await scanAPI.dispatchScan({
         tracking_id: trackingId.trim(),
         user_id: user?.user_id
       });
+      const endTime = performance.now();
+      const scanTime = endTime - startTime;
+      
+      // Update performance metrics
+      setLastScanTime(scanTime);
+      if (scanTime < 100) {
+        setPerformanceMode('ultra-fast');
+      } else if (scanTime < 500) {
+        setPerformanceMode('fast');
+      } else {
+        setPerformanceMode('normal');
+      }
 
       if (response.data?.success) {
-        toast.success(`Dispatch scan successful for ${trackingId}`);
+        toast.success(`Dispatch scan successful for ${trackingId} (${scanTime.toFixed(0)}ms)`);
         
         // ✅ SUCCESS LOGGER: Add to table and console
         addScanLog({
@@ -316,7 +351,8 @@ const Dispatch = () => {
           g_code_ean: 'N/A',
           status: response.data?.status || 'Dispatched',
           message: response.data?.message || `Dispatch scan successful for ${trackingId}`,
-          user: user?.username || user?.user_id || 'Unknown'
+          user: user?.username || user?.user_id || 'Unknown',
+          scanTime: scanTime.toFixed(0)
         });
         
         setTrackingId('');
@@ -563,6 +599,31 @@ const Dispatch = () => {
               <p className="text-sm text-gray-600">
                 Scan tracking ID to process dispatch
               </p>
+              <div className="mt-3">
+                <button
+                  onClick={handlePrewarmDispatch}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                  title="Pre-warm dispatch indexes for ultra-fast scanning"
+                >
+                  🚀 Pre-warm Dispatch Indexes
+                </button>
+              </div>
+              
+              {/* Performance Display */}
+              {lastScanTime && (
+                <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Last Scan:</span>
+                    <span className={`font-medium ${
+                      performanceMode === 'ultra-fast' ? 'text-green-600' :
+                      performanceMode === 'fast' ? 'text-blue-600' :
+                      'text-orange-600'
+                    }`}>
+                      {lastScanTime.toFixed(0)}ms ({performanceMode})
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="space-y-4">
@@ -677,6 +738,15 @@ const Dispatch = () => {
               <p className="text-sm text-gray-600">
                 Scan tracking ID to mark as pending dispatch
               </p>
+              <div className="mt-3">
+                <button
+                  onClick={handlePrewarmDispatch}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                  title="Pre-warm dispatch indexes for ultra-fast scanning"
+                >
+                  🚀 Pre-warm Dispatch Indexes
+                </button>
+              </div>
             </div>
             
             <div className="space-y-4">

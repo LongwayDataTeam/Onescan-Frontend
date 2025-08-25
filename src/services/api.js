@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create axios instance
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
-  timeout: 60000, // Increased to 60 seconds for large file uploads
+  timeout: 120000, // 120 seconds - increased for Redis operations
   headers: {
     'Content-Type': 'application/json',
   },
@@ -115,6 +115,7 @@ export const scanAPI = {
   debugTracking: (data) => api.post('/scan/debug-tracking', data),
   dispatchPending: (data) => api.post('/scan/dispatch-pending', data),
   dispatchScan: (data) => api.post('/scan/dispatch', data),
+  prewarmDispatch: () => api.post('/scan/prewarm-dispatch'),
   revokeStatus: (data) => api.post('/scan/revoke', data),
   getCurrentStatus: (trackingId) => api.get(`/scan/status/${trackingId}`),
   cancelShipment: (data) => api.post('/scan/cancel', data),
@@ -149,10 +150,13 @@ export const dataAPI = {
   getTrackingDetails: (trackingId) => api.get(`/data/tracking/${trackingId}`),
   getUploadHistory: () => api.get('/data/upload-history'),
   getAllUploadedData: (page = 1, pageSize = 100) => api.get(`/data/all-data?page=${page}&page_size=${pageSize}`),
+  getOptimizedData: (params) => api.get('/data/optimized-data', { params }),
+  getLargeDatasetData: (params) => api.get('/data/large-dataset', { params }),
   searchAllData: (searchTerm = "", statusFilter = "", courierFilter = "", page = 1, pageSize = 100) => 
     api.get(`/data/search?search_term=${encodeURIComponent(searchTerm)}&status_filter=${encodeURIComponent(statusFilter)}&courier_filter=${encodeURIComponent(courierFilter)}&page=${page}&page_size=${pageSize}`),
   clearAllData: () => api.delete('/data/clear-all-data'),
   clearAllScanningData: () => api.delete('/data/clear-all-scanning-data'),
+  clearKpiCache: () => api.post('/data/clear-kpi-cache'),
   storeScanningData: (data) => api.post('/data/store-scanning-data', data),
   getScanningData: () => api.get('/data/get-scanning-data'),
   clearScanningData: () => api.delete('/data/clear-scanning-data'),

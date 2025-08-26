@@ -57,17 +57,16 @@ const Layout = () => {
       roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
     },
     {
-      name: 'Data Upload',
-      path: '/data-upload',
-      icon: Upload,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
-    },
-    
-    {
       name: 'Revoke',
       path: '/revoke',
       icon: Settings,
       roles: ['super_admin', 'developer', 'admin'],
+    },
+    {
+      name: 'Data Upload',
+      path: '/data-upload',
+      icon: Upload,
+      roles: ['super_admin', 'developer', 'admin', 'manager'],
     },
     {
       name: 'User Management',

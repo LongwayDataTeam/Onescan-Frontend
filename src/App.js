@@ -11,7 +11,9 @@ import Login from './pages/Login';
 import LabelScanning from './pages/LabelScanning';
 import Packing from './pages/Packing';
 import Dispatch from './pages/Dispatch';
+import DataView from './pages/DataView';
 import RevokePage from './pages/RevokePage';
+import CancelShipment from './pages/CancelShipment';
 import UserManagement from './pages/UserManagement';
 import ApprovalRequests from './pages/ApprovalRequests';
 import UserProfile from './pages/UserProfile';
@@ -19,6 +21,7 @@ import Integration from './pages/Integration';
 import TrackerDocs from './pages/TrackerDocs';
 import Logger from './pages/Logger';
 import DataUpload from './pages/DataUpload';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -114,6 +117,12 @@ function App() {
                 </RoleBasedRoute>
               } />
               
+              <Route path="cancel-shipment" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'manager', 'executive']}>
+                  <CancelShipment />
+                </RoleBasedRoute>
+              } />
+              
               <Route path="user-management" element={
                 <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'manager']}>
                   <UserManagement />
@@ -162,6 +171,12 @@ function App() {
               <Route path="data-upload" element={
                 <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'manager']}>
                   <DataUpload />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="data-view" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'manager', 'executive']}>
+                  <DataView />
                 </RoleBasedRoute>
               } />
             </Route>

@@ -318,7 +318,7 @@ const Integration = () => {
       console.log('🌐 Making request to:', '/sessions/active-sessions');
       
       // Use the real API endpoint with proper authentication
-      const response = await fetch('http://localhost:8000/sessions/active-sessions', {
+      const response = await fetch('https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app/sessions/active-sessions', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -823,7 +823,7 @@ const Integration = () => {
         return;
       }
       
-      const response = await fetch(`http://localhost:8000/sessions/${sessionId}/logout`, {
+      const response = await fetch(`https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app/sessions/${sessionId}/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -853,7 +853,7 @@ const Integration = () => {
         return;
       }
       
-      const response = await fetch(`http://localhost:8000/sessions/${sessionId}/pause`, {
+      const response = await fetch(`https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app/sessions/${sessionId}/pause`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -883,7 +883,7 @@ const Integration = () => {
         return;
       }
       
-      const response = await fetch(`http://localhost:8000/sessions/${sessionId}/resume`, {
+      const response = await fetch(`https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app/sessions/${sessionId}/resume`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -926,7 +926,7 @@ const Integration = () => {
       console.log(`💬 Flashing message to user: ${username} (${sessionId})`);
       console.log(`📝 Message: ${flashMessage}`);
       
-      const response = await fetch(`http://localhost:8000/sessions/${sessionId}/flash`, {
+      const response = await fetch(`https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app/sessions/${sessionId}/flash`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

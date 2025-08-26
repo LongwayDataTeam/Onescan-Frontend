@@ -1,22 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, XCircle, AlertTriangle, CheckCircle, Package } from 'lucide-react';
+import { RotateCcw, AlertTriangle, CheckCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
 
 const RevokePage = () => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('revoke');
-  
   // Revoke Tab State
   const [revokeTrackingId, setRevokeTrackingId] = useState('');
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('Unlabeled');
   const [currentStatus, setCurrentStatus] = useState('');
-  
-  // Cancel Tab State
-  const [cancelTrackingId, setCancelTrackingId] = useState('');
-  const [cancelLoading, setCancelLoading] = useState(false);
   
   // Activity Logger State
   const [activityLogs, setActivityLogs] = useState([]);
@@ -24,7 +18,6 @@ const RevokePage = () => {
   
   // Refs for input focus
   const revokeTrackingIdInputRef = useRef(null);
-  const cancelTrackingIdInputRef = useRef(null);
 
   // Status options for revoke dropdown
   const statusOptions = [
@@ -65,10 +58,8 @@ const RevokePage = () => {
       
       // Clear all revoke data
       setRevokeTrackingId('');
-      setCancelTrackingId('');
       setRevokeLoading(false);
-      setCancelLoading(false);
-                setSelectedStatus('Unlabeled');
+      setSelectedStatus('Unlabeled');
       setCurrentStatus('');
       
       // Clear local storage
@@ -81,9 +72,8 @@ const RevokePage = () => {
     const handleRefreshData = (event) => {
       console.log('🔄 Revoke: Received refresh data event:', event.detail);
       
-      // If this is a revoke or cancel operation, clear the form for next scan
-      if (event.detail.action === 'revoke_status_success' || 
-          event.detail.action === 'cancel_shipment_success') {
+      // If this is a revoke operation, clear the form for next scan
+      if (event.detail.action === 'revoke_status_success') {
         console.log('🔄 Revoke: Refreshing form for next scan');
         // Form is already cleared in the success handler, just log the refresh
       }
@@ -407,92 +397,7 @@ const RevokePage = () => {
     }
   };
 
-  // Handle Cancel Shipment
-  const handleCancelShipment = async () => {
-    if (!cancelTrackingId.trim()) {
-      toast.error('Please enter Tracking ID');
-      return;
-    }
-
-    setCancelLoading(true);
-    try {
-      console.log('🚀 Cancel: Making API call with data:', {
-        tracking_id: cancelTrackingId.trim(),
-        user_id: user?.user_id
-      });
-      
-      // Call real cancel API
-      const response = await scanAPI.cancelShipment({
-        tracking_id: cancelTrackingId.trim(),
-        user_id: user?.user_id
-      });
-
-      console.log('🔍 Cancel API Response:', response);
-      console.log('🔍 Response data:', response.data);
-      console.log('🔍 Success field:', response.data?.success);
-      
-      if (response.data?.success) {
-        toast.success(`Shipment cancelled for ${cancelTrackingId}. Data refreshed across all components.`);
-        
-        // ✅ SUCCESS LOGGER: Add to table and console
-        addActivityLog({
-          type: 'success',
-          action: 'Cancel Shipment',
-          tracking_id: cancelTrackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'cancel',
-          message: `Shipment cancelled successfully`,
-          user: user?.username || user?.user_id || 'Unknown'
-        });
-        
-        setCancelTrackingId('');
-        
-        // 🔄 REFRESH DATA: Trigger global data refresh to update all components
-        const refreshEvent = new CustomEvent('refreshAllTrackingData', {
-          detail: {
-            action: 'cancel_shipment_success',
-            tracking_id: cancelTrackingId.trim(),
-            timestamp: new Date().toISOString()
-          }
-        });
-        console.log('🔄 Cancel: Dispatching data refresh event:', refreshEvent.detail);
-        window.dispatchEvent(refreshEvent);
-        
-        // Focus back to input for next scan
-        cancelTrackingIdInputRef.current?.focus();
-      } else {
-        toast.error(response.data?.message || 'Shipment cancellation failed');
-        
-        // ❌ ERROR LOGGER: Add to table and console
-        addActivityLog({
-          type: 'error',
-          action: 'Cancel Shipment',
-          tracking_id: cancelTrackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'Failed',
-          message: response.data?.message || 'Shipment cancellation failed',
-          user: user?.username || user?.user_id || 'Unknown'
-        });
-      }
-      
-    } catch (error) {
-      toast.error('Shipment cancellation failed');
-      console.error('Shipment cancellation error:', error);
-      
-      // ❌ ERROR LOGGER: Add to table and console
-      addActivityLog({
-        type: 'error',
-        action: 'Cancel Shipment',
-        tracking_id: cancelTrackingId.trim(),
-        g_code_ean: 'N/A',
-        status: 'Failed',
-        message: error.message || 'Shipment cancellation failed',
-        user: user?.username || user?.user_id || 'Unknown'
-      });
-    } finally {
-      setCancelLoading(false);
-    }
-  };
+  
 
   // Handle Enter key press for revoke tracking ID input
   const handleRevokeTrackingIdInput = async (e) => {
@@ -535,53 +440,19 @@ const RevokePage = () => {
     }
   };
 
-  // Handle Enter key press for cancel tracking ID input
-  const handleCancelTrackingIdInput = (e) => {
-    if (e.key === 'Enter' && cancelTrackingId.trim()) {
-      handleCancelShipment();
-    }
-  };
+
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Revoke & Cancel</h1>
-          <p className="text-gray-600">Manage status changes and shipment cancellations</p>
+          <h1 className="text-2xl font-bold text-gray-900">Revoke Status</h1>
+          <p className="text-gray-600">Manage status changes and revert to previous states</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('revoke')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'revoke'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <RotateCcw className="w-4 h-4 inline mr-2" />
-            Revoke Status
-          </button>
-          <button
-            onClick={() => setActiveTab('cancel')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'cancel'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <XCircle className="w-4 h-4 inline mr-2" />
-            Cancel Shipment
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'revoke' && (
+      {/* Revoke Section */}
         <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
           <div className="max-w-md mx-auto">
             <div className="text-center mb-6">
@@ -729,65 +600,13 @@ const RevokePage = () => {
             </div>
           )}
 
-      {activeTab === 'cancel' && (
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <XCircle className="w-8 h-8 text-red-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Cancel Shipment</h2>
-              <p className="text-sm text-gray-600">
-                Scan tracking ID to cancel shipment
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-                <div>
-                <label htmlFor="cancelTrackingId" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tracking ID
-                </label>
-                <input
-                  ref={cancelTrackingIdInputRef}
-                  type="text"
-                  id="cancelTrackingId"
-                  value={cancelTrackingId}
-                  onChange={(e) => setCancelTrackingId(e.target.value)}
-                  onKeyDown={handleCancelTrackingIdInput}
-                  placeholder="Scan/Enter tracking ID and press Enter"
-                  className="scan-input w-full"
-                  autoFocus
-                  disabled={cancelLoading}
-                />
-              </div>
-              
-              <button
-                onClick={handleCancelShipment}
-                disabled={cancelLoading || !cancelTrackingId.trim()}
-                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed h-12 text-base bg-red-600 hover:bg-red-700"
-              >
-                {cancelLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="spinner w-5 h-5 mr-2"></div>
-                    Cancelling...
-                </div>
-                ) : (
-                  <>
-                    <XCircle className="w-5 h-5 mr-2" />
-                    Cancel Shipment
-                  </>
-                )}
-              </button>
-                </div>
-                </div>
-              </div>
-      )}
+
       
       {/* Full Width Activity Logger Section */}
       <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">Revoke & Cancel Activity Logger</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Revoke Status Activity Logger</h3>
             <div className="flex items-center space-x-3">
                 <button
                 onClick={() => setShowLogs(!showLogs)}
@@ -810,8 +629,8 @@ const RevokePage = () => {
             {activityLogs.length === 0 ? (
               <div className="text-center text-gray-500 py-12">
                 <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg font-medium">No revoke/cancel activity yet</p>
-                <p className="text-sm text-gray-400">Start revoking or cancelling to see activity logs here</p>
+                <p className="text-lg font-medium">No revoke status activity yet</p>
+                <p className="text-sm text-gray-400">Start revoking statuses to see activity logs here</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

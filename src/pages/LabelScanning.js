@@ -1316,7 +1316,7 @@ const LabelScanning = () => {
                       try {
                         console.log('🧪 Testing API connection...');
                         console.log('🧪 Auth token check:', !!localStorage.getItem('auth-storage'));
-                        console.log('🧪 API base URL:', process.env.REACT_APP_API_URL || 'http://localhost:8000');
+                        console.log('🧪 API base URL:', process.env.REACT_APP_API_URL || 'https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app');
                         
                         // Test basic connection first
                         const response = await dataAPI.getAllUploadedData(1, 100);

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Bell, Check, X, Trash2, UserPlus, Lock, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, Check, X, UserPlus, Lock, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const NotificationDropdown = () => {

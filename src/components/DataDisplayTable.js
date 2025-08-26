@@ -4,7 +4,6 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight,
-  Download, 
   Eye,
   EyeOff
 } from 'lucide-react';

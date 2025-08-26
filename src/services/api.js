@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseURL: process.env.REACT_APP_API_URL || 'https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app',
   timeout: 120000, // 120 seconds - increased for Redis operations
   headers: {
     'Content-Type': 'application/json',

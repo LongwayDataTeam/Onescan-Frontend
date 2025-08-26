@@ -14,13 +14,14 @@ import {
   Upload,
   LogOut,
   User,
-  Shield
+  Shield,
+  Database
 } from 'lucide-react';
 
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, canAccessPage } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Navigation items with role-based access
@@ -44,10 +45,22 @@ const Layout = () => {
       roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
     },
     {
+      name: 'Cancel Shipment',
+      path: '/cancel-shipment',
+      icon: X,
+      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
+    },
+    {
       name: 'Data Upload',
       path: '/data-upload',
       icon: Upload,
-    roles: ['super_admin', 'developer', 'admin', 'manager'],
+      roles: ['super_admin', 'developer', 'admin', 'manager'],
+    },
+    {
+      name: 'Data View',
+      path: '/data-view',
+      icon: Database,
+      roles: ['super_admin', 'developer', 'admin', 'manager'],
     },
     {
       name: 'Revoke',

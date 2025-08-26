@@ -3,6 +3,7 @@ import { XCircle, AlertTriangle, CheckCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const CancelShipment = () => {
   const { user } = useAuthStore();
@@ -97,6 +98,14 @@ const CancelShipment = () => {
       if (response.data?.success) {
         toast.success(`Shipment cancelled for ${cancelTrackingId}. Data refreshed across all components.`);
         
+        // Play success sound
+        try {
+          await playSuccessSound();
+          console.log('🔊 CancelShipment: Success sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 CancelShipment: Failed to trigger success sound:', error);
+        }
+        
         // ✅ SUCCESS LOGGER: Add to table and console
         addActivityLog({
           type: 'success',
@@ -125,6 +134,13 @@ const CancelShipment = () => {
         cancelTrackingIdInputRef.current?.focus();
       } else {
         toast.error(response.data?.message || 'Shipment cancellation failed');
+        // Play error sound for scanning error
+        try {
+          await playErrorSound();
+          console.log('🔊 CancelShipment: Error sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 CancelShipment: Failed to trigger error sound:', error);
+        }
         
         // ❌ ERROR LOGGER: Add to table and console
         addActivityLog({
@@ -140,6 +156,13 @@ const CancelShipment = () => {
       
     } catch (error) {
       toast.error('Shipment cancellation failed');
+      // Play error sound for scanning error
+      try {
+        await playErrorSound();
+        console.log('🔊 CancelShipment: Error sound triggered for network error');
+      } catch (error) {
+        console.error('🔊 CancelShipment: Failed to trigger error sound:', error);
+      }
       console.error('Shipment cancellation error:', error);
       
       // ❌ ERROR LOGGER: Add to table and console

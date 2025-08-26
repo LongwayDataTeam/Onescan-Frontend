@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'react-hot-toast';
 import { authAPI } from '../services/api';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 import { 
   Plus, 
   Search, 
@@ -166,21 +167,45 @@ const UserManagement = () => {
         if (response.data.code === 202) {
           // Approval request submitted
           toast.success('User creation request submitted successfully! Awaiting approval from super admin or developer.');
+          try {
+            await playSuccessSound();
+            console.log('🔊 UserManagement: Success sound triggered for user creation request');
+          } catch (error) {
+            console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+          }
           setShowCreateModal(false);
           resetForm();
         } else {
           // User created directly
           toast.success('User created successfully');
+          try {
+            await playSuccessSound();
+            console.log('🔊 UserManagement: Success sound triggered for user creation');
+          } catch (error) {
+            console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+          }
           setShowCreateModal(false);
           resetForm();
           loadUsers(); // Reload users list
         }
       } else {
         toast.error(response.data.message || 'Failed to create user');
+        try {
+          await playErrorSound();
+          console.log('🔊 UserManagement: Error sound triggered for user creation failure');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger error sound:', error);
+        }
       }
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error(error.message || 'Failed to create user');
+      try {
+        await playErrorSound();
+        console.log('🔊 UserManagement: Error sound triggered for user creation network error');
+      } catch (soundError) {
+        console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+      }
     }
   };
 
@@ -201,14 +226,32 @@ const UserManagement = () => {
       
       if (response.data.ok) {
         toast.success('User updated successfully');
+        try {
+          await playSuccessSound();
+          console.log('🔊 UserManagement: Success sound triggered for user update');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+        }
         setShowEditModal(false);
         loadUsers(); // Reload users list
       } else {
         toast.error(response.data.message || 'Failed to update user');
+        try {
+          await playErrorSound();
+          console.log('🔊 UserManagement: Error sound triggered for user update failure');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger error sound:', error);
+        }
       }
     } catch (error) {
       console.error('Error updating user:', error);
       toast.error(error.message || 'Failed to update user');
+      try {
+        await playErrorSound();
+        console.log('🔊 UserManagement: Error sound triggered for user update network error');
+      } catch (soundError) {
+        console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+      }
     }
   };
 
@@ -223,13 +266,31 @@ const UserManagement = () => {
       
       if (response.data.ok) {
         toast.success('User deleted successfully');
+        try {
+          await playSuccessSound();
+          console.log('🔊 UserManagement: Success sound triggered for user deletion');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+        }
         loadUsers(); // Reload users list
       } else {
         toast.error(response.data.message || 'Failed to delete user');
+        try {
+          await playErrorSound();
+          console.log('🔊 UserManagement: Error sound triggered for user deletion failure');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger error sound:', error);
+        }
       }
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error(error.message || 'Failed to delete user');
+      try {
+        await playErrorSound();
+        console.log('🔊 UserManagement: Error sound triggered for user deletion network error');
+      } catch (soundError) {
+        console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+      }
     }
   };
 
@@ -242,13 +303,31 @@ const UserManagement = () => {
       
       if (response.data.ok) {
         toast.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`);
+        try {
+          await playSuccessSound();
+          console.log('🔊 UserManagement: Success sound triggered for user status change');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+        }
         loadUsers(); // Reload users list
       } else {
         toast.error(response.data.message || 'Failed to update user status');
+        try {
+          await playErrorSound();
+          console.log('🔊 UserManagement: Error sound triggered for user status update failure');
+        } catch (error) {
+          console.error('🔊 UserManagement: Failed to trigger error sound:', error);
+        }
       }
     } catch (error) {
       console.error('Error updating user status:', error);
       toast.error(error.message || 'Failed to update user status');
+      try {
+        await playErrorSound();
+        console.log('🔊 UserManagement: Error sound triggered for user status update network error');
+      } catch (soundError) {
+        console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+      }
     }
   };
 
@@ -905,14 +984,32 @@ const UserManagement = () => {
                        
                        if (response.data.ok) {
                          toast.success('Permissions updated successfully');
+                         try {
+                           await playSuccessSound();
+                           console.log('🔊 UserManagement: Success sound triggered for permissions update');
+                         } catch (error) {
+                           console.error('🔊 UserManagement: Failed to trigger success sound:', error);
+                         }
                          setShowPermissionsModal(false);
                          loadUsers(); // Reload users list
                        } else {
                          toast.error(response.data.message || 'Failed to update permissions');
+                         try {
+                           await playErrorSound();
+                           console.log('🔊 UserManagement: Error sound triggered for permissions update failure');
+                         } catch (soundError) {
+                           console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+                         }
                        }
                      } catch (error) {
                        console.error('Error updating permissions:', error);
                        toast.error(error.message || 'Failed to update permissions');
+                       try {
+                         await playErrorSound();
+                         console.log('🔊 UserManagement: Error sound triggered for permissions update network error');
+                       } catch (soundError) {
+                         console.error('🔊 UserManagement: Failed to trigger error sound:', soundError);
+                       }
                      }
                    }}
                    className="btn-primary"

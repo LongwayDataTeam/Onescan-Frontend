@@ -3,6 +3,7 @@ import { scanAPI, dataAPI } from '../services/api';
 import { Package, CheckCircle, XCircle, Clock, Search, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, Database, AlertCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const LabelScanning = () => {
   const { user } = useAuthStore();
@@ -542,7 +543,13 @@ const LabelScanning = () => {
   }, []);
 
   // Enhanced scan result handler with multi-SKU support
-  const handleScanResult = useCallback((result, startTime, fromCache = false) => {
+  const handleScanResult = useCallback(async (result, startTime, fromCache = false) => {
+    console.log('🔊 handleScanResult called with:', { result, startTime, fromCache });
+    console.log('🔊 Full result object:', JSON.stringify(result, null, 2));
+    console.log('🔊 Result success value:', result.success);
+    console.log('🔊 Result status:', result.status);
+    console.log('🔊 Result message:', result.message);
+    
     const responseTime = performance.now() - startTime;
     
     // Ensure responseTime is a valid number
@@ -605,14 +612,42 @@ const LabelScanning = () => {
     }
     
     // Show appropriate toast based on performance and result
-    if (fromCache) {
-      toast.success(`⚡ Instant scan: ${result.message}`, { duration: 1000 });
-    } else if (validResponseTime < 100) {
-      toast.success(`🚀 Lightning fast: ${result.message}`, { duration: 1000 });
-    } else if (validResponseTime < 300) {
-      toast.success(`⚡ Ultra fast: ${result.message}`, { duration: 1000 });
+    if (result.success) {
+      if (fromCache) {
+        toast.success(`⚡ Instant scan: ${result.message}`, { duration: 1000 });
+      } else if (validResponseTime < 100) {
+        toast.success(`🚀 Lightning fast: ${result.message}`, { duration: 1000 });
+      } else if (validResponseTime < 300) {
+        toast.success(`⚡ Ultra fast: ${result.message}`, { duration: 1000 });
+      } else {
+        toast.success(result.message, { duration: 2000 });
+      }
     } else {
-      toast.success(result.message, { duration: 2000 });
+      // Show error toast for failed scans
+      toast.error(`❌ Scan failed: ${result.message}`, { duration: 3000 });
+    }
+    
+    // Play success sound for successful scans
+    if (result.success) {
+      console.log('🔊 Attempting to play success sound for scan result:', result);
+      console.log('🔊 Result success value:', result.success);
+      console.log('🔊 Result message:', result.message);
+      
+      try {
+        console.log('🔊 About to call playSuccessSound()');
+        await playSuccessSound();
+        console.log('🔊 Success sound triggered successfully');
+      } catch (error) {
+        console.error('🔊 Failed to trigger success sound:', error);
+      }
+    } else {
+      console.log('🔊 Scan result not successful, playing error sound');
+      try {
+        await playErrorSound();
+        console.log('🔊 Error sound triggered successfully');
+      } catch (error) {
+        console.error('🔊 Failed to trigger error sound:', error);
+      }
     }
     
     // Add to recent scans
@@ -644,13 +679,11 @@ const LabelScanning = () => {
     // Update global KPIs
     updateGlobalKPIs(result.orderIds?.length || 0);
     
-    // Play appropriate sound
+    // Add visual feedback for scan result
     if (result.success) {
-      playSuccessSound();
       inputRef.current?.classList.add('scan-success');
       setTimeout(() => inputRef.current?.classList.remove('scan-success'), 200);
     } else {
-      playErrorSound();
       inputRef.current?.classList.add('scan-error');
       setTimeout(() => inputRef.current?.classList.remove('scan-error'), 200);
     }
@@ -675,6 +708,14 @@ const LabelScanning = () => {
     // Check if already scanned to prevent duplicates (global check)
     if (globalKPIs.scannedTrackingIds.has(trackingId)) {
       toast.error(`⚠️ Tracking ID ${trackingId} has already been scanned by any user!`, { duration: 3000 });
+        // Play error sound for scanning error
+        console.log('🔊 Attempting to play error sound for duplicate scan');
+        try {
+          await playErrorSound();
+          console.log('🔊 Error sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 Failed to trigger error sound:', error);
+        }
       setScanInput('');
       inputRef.current?.focus();
       return;
@@ -683,7 +724,7 @@ const LabelScanning = () => {
     // Check cache first for instant response
     if (scanCache.has(trackingId)) {
       const cachedResult = scanCache.get(trackingId);
-      handleScanResult(cachedResult, startTime, true);
+      await handleScanResult(cachedResult, startTime, true);
       setScanInput('');
       return;
     }
@@ -698,6 +739,9 @@ const LabelScanning = () => {
         tracking_id: trackingId,
         user_id: user.user_id,
       });
+      
+      console.log('🔊 API Response:', response);
+      console.log('🔊 Response data:', response.data);
       
       const { success, message, status, order_ids, courier, records_found } = response.data;
       
@@ -718,7 +762,7 @@ const LabelScanning = () => {
         setScanCache(prev => new Map(prev.set(trackingId, scanResult)));
         
         // Process the scan result
-        handleScanResult(scanResult, startTime, false);
+        await handleScanResult(scanResult, startTime, false);
         
         // Clear input immediately for next scan
         setScanInput('');
@@ -728,6 +772,10 @@ const LabelScanning = () => {
         
       } else {
         // Handle error case
+        console.log('🔊 Scan failed - success is false');
+        console.log('🔊 Error message:', message);
+        console.log('🔊 Error status:', status);
+        
         const errorResult = {
           success: false,
           message,
@@ -738,7 +786,8 @@ const LabelScanning = () => {
           timestamp: Date.now(),
         };
         
-        handleScanResult(errorResult, startTime, false);
+        console.log('🔊 Created error result:', errorResult);
+        await handleScanResult(errorResult, startTime, false);
         setScanInput('');
       }
       
@@ -755,7 +804,7 @@ const LabelScanning = () => {
         timestamp: Date.now(),
       };
       
-      handleScanResult(errorResult, startTime, false);
+              await handleScanResult(errorResult, startTime, false);
       setScanInput('');
       
     } finally {
@@ -773,43 +822,7 @@ const LabelScanning = () => {
     }));
   };
 
-  const playSuccessSound = () => {
-    // Create a simple success beep sound
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
-    
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-  };
-
-  const playErrorSound = () => {
-    // Create a simple error beep sound
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
-    
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-  };
+  // Removed duplicate local sound functions - using imported ones from soundUtils.js
 
   // Optimized input handling for ultra-fast scanning
   const handleInputChange = useCallback((e) => {

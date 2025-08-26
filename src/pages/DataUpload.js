@@ -28,6 +28,7 @@ import {
   Upload as UploadIcon
 } from 'lucide-react';
 import DataDisplayTable from '../components/DataDisplayTable';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const DataUpload = () => {
   // Core state
@@ -310,15 +311,28 @@ const DataUpload = () => {
       
       if (response.ok) {
         toast.success('File uploaded successfully!');
+        playSuccessSound();
         setSelectedFile(null);
         // Refresh data after upload
         fetchData(1, false);
       } else {
         toast.error(response.message || 'Upload failed');
+        try {
+          await playErrorSound();
+          console.log('🔊 DataUpload: Error sound triggered for upload failure');
+        } catch (error) {
+          console.error('🔊 DataUpload: Failed to trigger error sound:', error);
+        }
       }
     } catch (err) {
       console.error('Upload error:', err);
       toast.error('Upload failed. Please try again.');
+      try {
+        await playErrorSound();
+        console.log('🔊 DataUpload: Error sound triggered for upload network error');
+      } catch (error) {
+        console.error('🔊 DataUpload: Failed to trigger error sound:', error);
+      }
     } finally {
       setUploading(false);
     }
@@ -383,6 +397,7 @@ const DataUpload = () => {
       
       if (response.ok) {
         toast.success('✅ All data deleted successfully!');
+        playSuccessSound();
         setError('');
         setDataRecords([]);
         setTotalCount(0);
@@ -425,11 +440,18 @@ const DataUpload = () => {
       
       if (response.ok) {
         toast.success('✅ Scanning data deleted successfully!');
+        playSuccessSound();
         setError('');
         // Refresh data to show updated counts
         fetchData(1, true);
       } else {
         toast.error(response.message || 'Failed to delete scanning data');
+        try {
+          await playErrorSound();
+          console.log('🔊 DataUpload: Error sound triggered for scanning data deletion failure');
+        } catch (error) {
+          console.error('🔊 DataUpload: Failed to trigger error sound:', error);
+        }
         setError('Failed to delete scanning data');
       }
     } catch (err) {
@@ -456,11 +478,18 @@ const DataUpload = () => {
       // Set last updated timestamp
       setKpiLastUpdated(new Date());
       
-      toast.success('✅ KPI metrics refreshed successfully!');
+              toast.success('✅ KPI metrics refreshed successfully!');
+        playSuccessSound();
       setError('');
     } catch (err) {
       console.error('Refresh KPIs error:', err);
       toast.error('Failed to refresh KPIs. Please try again.');
+      try {
+        await playErrorSound();
+        console.log('🔊 DataUpload: Error sound triggered for KPI refresh failure');
+      } catch (error) {
+        console.error('🔊 DataUpload: Failed to trigger error sound:', error);
+      }
       setError('Failed to refresh KPIs');
     } finally {
       setRefreshingKPIs(false);
@@ -488,7 +517,8 @@ const DataUpload = () => {
         console.log('Backend cache clear not available, local cache cleared');
       }
       
-      toast.success('✅ Cache cleared successfully!');
+              toast.success('✅ Cache cleared successfully!');
+        playSuccessSound();
       setError('');
       
       // Refresh data

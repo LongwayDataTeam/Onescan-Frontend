@@ -3,6 +3,7 @@ import { Truck, CheckCircle, XCircle, Clock, Search, Package } from 'lucide-reac
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const Dispatch = () => {
   const { user } = useAuthStore();
@@ -347,6 +348,14 @@ const Dispatch = () => {
       if (response.data?.success) {
         toast.success(`Dispatch scan successful for ${trackingId} (${scanTime.toFixed(0)}ms)`);
         
+        // Play success sound
+        try {
+          await playSuccessSound();
+          console.log('🔊 Dispatch: Success sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 Dispatch: Failed to trigger success sound:', error);
+        }
+        
         // ✅ SUCCESS LOGGER: Add to table and console
         addScanLog({
           type: 'success',
@@ -364,6 +373,14 @@ const Dispatch = () => {
         trackingIdInputRef.current?.focus();
       } else {
         toast.error(response.data?.message || 'Dispatch scan failed');
+        
+        // Play error sound for scanning error
+        try {
+          await playErrorSound();
+          console.log('🔊 Dispatch: Error sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 Dispatch: Failed to trigger error sound:', error);
+        }
         
         // ❌ ERROR LOGGER: Add to table and console
         addScanLog({
@@ -390,6 +407,14 @@ const Dispatch = () => {
       }
       
       toast.error(errorMessage);
+      
+      // Play error sound for network/API errors
+      try {
+        await playErrorSound();
+        console.log('🔊 Dispatch: Error sound triggered for network error');
+      } catch (error) {
+        console.error('🔊 Dispatch: Failed to trigger error sound:', error);
+      }
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({

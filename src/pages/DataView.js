@@ -22,6 +22,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import DataDisplayTable from '../components/DataDisplayTable';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const DataView = () => {
   // Core state
@@ -247,11 +248,18 @@ const DataView = () => {
       // Set last updated timestamp
       setKpiLastUpdated(new Date());
       
-      toast.success('✅ KPI metrics refreshed successfully!');
+              toast.success('✅ KPI metrics refreshed successfully!');
+        playSuccessSound();
       setError('');
     } catch (err) {
       console.error('Refresh KPIs error:', err);
       toast.error('Failed to refresh KPIs. Please try again.');
+      try {
+        await playErrorSound();
+        console.log('🔊 DataView: Error sound triggered for KPI refresh failure');
+      } catch (error) {
+        console.error('🔊 DataView: Failed to trigger error sound:', error);
+      }
       setError('Failed to refresh KPIs');
     } finally {
       setRefreshingKPIs(false);
@@ -311,6 +319,7 @@ const DataView = () => {
       
       if (response.data?.ok) {
         toast.success('✅ All data deleted successfully!');
+        playSuccessSound();
         setDataRecords([]);
         setTotalCount(0);
         setTotalPages(0);
@@ -320,6 +329,12 @@ const DataView = () => {
         handleRefreshKPIs();
       } else {
         toast.error(response.data?.message || 'Failed to delete data');
+        try {
+          await playErrorSound();
+          console.log('🔊 DataView: Error sound triggered for data deletion failure');
+        } catch (error) {
+          console.error('🔊 DataView: Failed to trigger error sound:', error);
+        }
         setError('Failed to delete data');
       }
     } catch (error) {
@@ -344,6 +359,7 @@ const DataView = () => {
       
       if (response.data?.ok) {
         toast.success('✅ Scanning data deleted successfully!');
+        playSuccessSound();
         setError('');
         
         // Refresh current page and KPIs
@@ -351,6 +367,12 @@ const DataView = () => {
         handleRefreshKPIs();
       } else {
         toast.error(response.data?.message || 'Failed to delete scanning data');
+        try {
+          await playErrorSound();
+          console.log('🔊 DataView: Error sound triggered for scanning data deletion failure');
+        } catch (error) {
+          console.error('🔊 DataView: Failed to trigger error sound:', error);
+        }
         setError('Failed to delete scanning data');
       }
     } catch (error) {
@@ -383,7 +405,8 @@ const DataView = () => {
         console.log('Backend cache clear not available, local cache cleared');
       }
       
-      toast.success('✅ Cache cleared successfully!');
+              toast.success('✅ Cache cleared successfully!');
+        playSuccessSound();
       setError('');
       
       // Refresh data

@@ -3,6 +3,7 @@ import { Package, CheckCircle, XCircle, Clock, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const Packing = () => {
   const { user } = useAuthStore();
@@ -300,6 +301,14 @@ const Packing = () => {
         
         if (isSuccess) {
            toast.success(message);
+           // Play success sound
+           console.log('🔊 Packing: Attempting to play success sound');
+           try {
+             await playSuccessSound();
+             console.log('🔊 Packing: Success sound triggered successfully');
+           } catch (error) {
+             console.error('🔊 Packing: Failed to trigger success sound:', error);
+           }
           
           // Get updated packing progress after scan
           try {
@@ -600,6 +609,14 @@ const Packing = () => {
       if (response.data?.success) {
         toast.success(`Packing scan successful for ${trackingId}`);
         
+        // Play success sound
+        try {
+          await playSuccessSound();
+          console.log('🔊 Packing: Success sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 Packing: Failed to trigger success sound:', error);
+        }
+        
         // ✅ SUCCESS LOGGER: Log all successful packing scans with order details
         console.log('🎉 PACKING SCAN SUCCESS LOG (Legacy):', {
           timestamp: new Date().toISOString(),
@@ -625,6 +642,14 @@ const Packing = () => {
         setShouldFocusTrackingId(true);
       } else {
         toast.error(response.data?.message || 'Packing scan failed');
+        
+        // Play error sound
+        try {
+          await playErrorSound();
+          console.log('🔊 Packing: Error sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 Packing: Failed to trigger error sound:', error);
+        }
         
         // ❌ ERROR LOGGER: Log all failed packing scans with order details
         console.log('❌ PACKING SCAN ERROR LOG (Legacy):', {
@@ -653,6 +678,15 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Packing scan failed');
+      
+      // Play error sound for network/API errors
+      try {
+        await playErrorSound();
+        console.log('🔊 Packing: Error sound triggered for network error');
+      } catch (error) {
+        console.error('🔊 Packing: Failed to trigger error sound:', error);
+      }
+      
       console.error('Packing scan error:', error);
       
       // ❌ NETWORK/API ERROR LOGGER: Log all network/API failures with order details

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import NotificationDropdown from './NotificationDropdown';
+import { playSuccessSound, playErrorSound, isAudioSupported, getAudioContextState } from '../utils/soundUtils';
 import { 
   Menu, 
   X, 
@@ -15,7 +16,9 @@ import {
   LogOut,
   User,
   Shield,
-  Database
+  Database,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 const Layout = () => {
@@ -23,6 +26,12 @@ const Layout = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSoundTest, setShowSoundTest] = useState(false);
+  const [audioStatus, setAudioStatus] = useState({
+    supported: false,
+    contextState: 'unknown',
+    initialized: false
+  });
 
   // Navigation items with role-based access
   const navigationItems = [
@@ -134,10 +143,36 @@ const Layout = () => {
     setSidebarOpen(false);
   };
 
+  // Test audio functionality
+  const testAudio = async () => {
+    try {
+      // Check status
+      const supported = isAudioSupported();
+      const contextState = getAudioContextState();
+      
+      setAudioStatus({
+        supported,
+        contextState,
+        initialized: true
+      });
+      
+      console.log('🔊 Audio Test Results:', { supported, contextState });
+      
+    } catch (error) {
+      console.error('🔊 Audio test failed:', error);
+      setAudioStatus(prev => ({ ...prev, error: error.message }));
+    }
+  };
+
   // Close sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  // Initialize audio on component mount
+  useEffect(() => {
+    testAudio();
+  }, []);
 
   // Don't render if no user
   if (!user) {
@@ -234,6 +269,50 @@ const Layout = () => {
 
            {/* Footer & Logout */}
            <div className="px-4 py-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+             {/* Sound Test Section */}
+             <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+               <div className="flex items-center justify-between mb-2">
+                 <h4 className="text-xs font-medium text-blue-800">🔊 Sound Test</h4>
+                 <button
+                   onClick={() => setShowSoundTest(!showSoundTest)}
+                   className="text-xs text-blue-600 hover:text-blue-800"
+                 >
+                   {showSoundTest ? 'Hide' : 'Show'}
+                 </button>
+               </div>
+               
+               {showSoundTest && (
+                 <div className="space-y-2">
+                   <div className="text-xs text-blue-700">
+                     <div>✅ Audio Supported: {audioStatus.supported ? 'Yes' : 'No'}</div>
+                     <div>🎵 Context State: {audioStatus.contextState}</div>
+                     <div>🔧 Initialized: {audioStatus.initialized ? 'Yes' : 'No'}</div>
+                   </div>
+                   
+                   <div className="flex space-x-2">
+                     <button
+                       onClick={() => playSuccessSound()}
+                       className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                     >
+                       Test Success
+                     </button>
+                     <button
+                       onClick={() => playErrorSound()}
+                       className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                     >
+                       Test Error
+                     </button>
+                   </div>
+                   
+                   {audioStatus.error && (
+                     <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                       Error: {audioStatus.error}
+                     </div>
+                   )}
+                 </div>
+               )}
+             </div>
+             
              {/* App Version */}
              <div className="text-center mb-3">
                <p className="text-xs text-gray-500">OneScan</p>

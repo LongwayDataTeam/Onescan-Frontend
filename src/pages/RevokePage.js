@@ -3,6 +3,7 @@ import { RotateCcw, AlertTriangle, CheckCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
+import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const RevokePage = () => {
   const { user } = useAuthStore();
@@ -64,7 +65,7 @@ const RevokePage = () => {
       // Clear all revoke data
       setRevokeTrackingId('');
       setRevokeLoading(false);
-      setSelectedStatus('Unlabeled');
+                setSelectedStatus('Unlabeled');
       setCurrentStatus('');
       
       // Clear local storage
@@ -235,6 +236,14 @@ const RevokePage = () => {
         
         toast.success(`Status changed from "${currentStatusLabel}" to "${selectedStatusLabel}" for ${revokeTrackingId}`);
         
+        // Play success sound
+        try {
+          await playSuccessSound();
+          console.log('🔊 RevokePage: Success sound triggered successfully');
+        } catch (error) {
+          console.error('🔊 RevokePage: Failed to trigger success sound:', error);
+        }
+        
         // ✅ SUCCESS LOGGER: Add to table and console
         addActivityLog({
           type: 'success',
@@ -269,6 +278,14 @@ const RevokePage = () => {
       } else {
         toast.error(response.data?.message || 'Status change failed');
         
+        // Play error sound for failed status changes
+        try {
+          await playErrorSound();
+          console.log('🔊 RevokePage: Error sound triggered for failed status change');
+        } catch (error) {
+          console.error('🔊 RevokePage: Failed to trigger error sound:', error);
+        }
+        
         // ❌ ERROR LOGGER: Add to table and console
         addActivityLog({
           type: 'error',
@@ -283,7 +300,15 @@ const RevokePage = () => {
       
     } catch (error) {
       toast.error('Status change failed');
-      console.error('Status change error:', error);
+      
+      // Play error sound for network errors
+      try {
+        await playErrorSound();
+        console.log('🔊 RevokePage: Error sound triggered for network error');
+      } catch (error) {
+        console.error('🔊 RevokePage: Failed to trigger error sound:', error);
+        console.error('Status change error:', error);
+      }
       
       // ❌ ERROR LOGGER: Add to table and console
       addActivityLog({

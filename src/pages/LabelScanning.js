@@ -47,16 +47,15 @@ const LabelScanning = () => {
   const [courierStatsLoading, setCourierStatsLoading] = useState(false);
   const [courierStatsLastUpdated, setCourierStatsLastUpdated] = useState(null);
 
-  // Calculate courier statistics from DataUpload data
+  // Calculate courier statistics from ALL DataUpload data (not just first page)
   const calculateCourierStats = useCallback(async () => {
     try {
       setCourierStatsLoading(true);
-      console.log('🔄 Fetching courier stats from DataUpload API...');
+      console.log('🔄 Fetching ALL courier stats from DataUpload API...');
       
-      // Fetch all data from DataUpload API
-      console.log('🚀 Starting API call to getAllUploadedData...');
-      console.log('🚀 Calling with page=1, page_size=25 (reduced for testing)');
-      const response = await dataAPI.getAllUploadedData(1, 25);
+      // Fetch ALL data from DataUpload API using the new function
+      console.log('🚀 Starting API call to getAllDataForStats...');
+      const response = await dataAPI.getAllDataForStats();
       console.log('🔍 Full API response:', response);
       console.log('🔍 Response type:', typeof response);
       console.log('🔍 Response.data type:', typeof response.data);
@@ -202,6 +201,7 @@ const LabelScanning = () => {
       console.log('📊 Calculated courier stats from DataUpload:', stats);
       setCourierStats(stats);
       setCourierStatsLastUpdated(new Date());
+      toast.success(`✅ Courier stats updated with ${allData.length} total records!`);
       
     } catch (error) {
       console.error('❌ Error fetching courier stats from DataUpload:', error);

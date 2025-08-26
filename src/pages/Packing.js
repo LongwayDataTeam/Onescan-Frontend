@@ -92,27 +92,25 @@ const Packing = () => {
     setScanLogs(prevLogs => [newLog, ...prevLogs].slice(0, 100)); // Keep last 100 logs
   };
 
-  // Calculate packing courier statistics from DataUpload data
+  // Calculate packing courier statistics from ALL DataUpload data (not just first 100)
   const calculatePackingCourierStats = async () => {
     try {
       setPackingCourierStatsLoading(true);
-      console.log('🔄 Fetching packing courier stats from DataUpload API...');
+      console.log('🔄 Fetching ALL packing courier stats from DataUpload API...');
       
       // Import dataAPI dynamically to avoid circular imports
       const { dataAPI } = await import('../services/api');
       
-      // Fetch all data from DataUpload API
-      const response = await dataAPI.getAllUploadedData(1, 100);
-      console.log('🔍 Packing courier stats API response:', response);
+      // Fetch ALL data from DataUpload API using the new function
+      const response = await dataAPI.getAllDataForStats();
+      console.log('🔍 Packing courier stats API response received');
       
       // Extract the data array
       let allData = [];
       if (response.data?.data?.records && Array.isArray(response.data.data.records)) {
         allData = response.data.data.records;
         console.log('✅ Using response.data.data.records (array)');
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        allData = response.data.data;
-        console.log('✅ Using response.data.data (array)');
+        console.log(`📊 Total records for packing courier stats: ${allData.length}`);
       } else {
         console.error('❌ No valid array found in response');
         return;
@@ -179,6 +177,7 @@ const Packing = () => {
       
       console.log('📊 Calculated packing courier stats:', stats);
       setPackingCourierStats(stats);
+      toast.success(`✅ Packing courier stats updated with ${allData.length} total records!`);
       
     } catch (error) {
       console.error('❌ Error fetching packing courier stats:', error);

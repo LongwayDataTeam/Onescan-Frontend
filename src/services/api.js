@@ -150,6 +150,41 @@ export const dataAPI = {
   getTrackingDetails: (trackingId) => api.get(`/data/tracking/${trackingId}`),
   getUploadHistory: () => api.get('/data/upload-history'),
   getAllUploadedData: (page = 1, pageSize = 100) => api.get(`/data/all-data?page=${page}&page_size=${pageSize}`),
+  getAllDataForStats: async () => {
+    try {
+      let allData = [];
+      let page = 1;
+      let hasMoreData = true;
+      const pageSize = 1000; // Use larger page size for efficiency
+      
+      console.log('🔄 Fetching all data for statistics...');
+      
+      while (hasMoreData) {
+        const response = await api.get(`/data/all-data?page=${page}&page_size=${pageSize}`);
+        
+        if (response.data?.data?.records && Array.isArray(response.data.data.records)) {
+          const records = response.data.data.records;
+          allData = allData.concat(records);
+          
+          // Check if we have more pages
+          const totalPages = response.data.data.total_pages || 1;
+          hasMoreData = page < totalPages;
+          page++;
+          
+          console.log(`📄 Fetched page ${page - 1}: ${records.length} records (Total: ${allData.length})`);
+        } else {
+          console.log('⚠️ No more data or invalid response structure');
+          hasMoreData = false;
+        }
+      }
+      
+      console.log(`✅ Total records fetched for statistics: ${allData.length}`);
+      return { data: { data: { records: allData } } };
+    } catch (error) {
+      console.error('❌ Error fetching all data for statistics:', error);
+      throw error;
+    }
+  },
   getOptimizedData: (params) => api.get('/data/optimized-data', { params }),
   getLargeDatasetData: (params) => api.get('/data/large-dataset', { params }),
   searchAllData: (searchTerm = "", statusFilter = "", courierFilter = "", page = 1, pageSize = 100) => 

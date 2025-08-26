@@ -191,8 +191,8 @@ const DataDisplayTable = ({
   return (
     <div className="space-y-4">
       {/* Table Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-gray-600">Show columns:</span>
           {columns.map(column => (
           <button
@@ -209,7 +209,7 @@ const DataDisplayTable = ({
           ))}
           </div>
           
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-center sm:justify-end space-x-2">
           <span className="text-sm text-gray-600">Page size:</span>
               <select
                 value={pageSize}
@@ -233,7 +233,7 @@ const DataDisplayTable = ({
                 visibleColumns.includes(column.key) && (
                   <th
                     key={column.key}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+                    className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort(column.key)}
                     style={{ width: column.width }}
                   >
@@ -254,67 +254,67 @@ const DataDisplayTable = ({
             {sortedData.map((record, index) => (
                   <tr key={record.tracking_id || index} className="hover:bg-gray-50">
                 {visibleColumns.includes('tracking_id') && (
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">
                     {record.tracking_id || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('tracking_no') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.tracking_no || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('order_id') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.order_id || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('g_code') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.g_code || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('ean') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.ean || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('sku') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.sku || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('qty') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.qty || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('amount') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {formatAmount(record.amount)}
                   </td>
                 )}
                 {visibleColumns.includes('courier') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.courier || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('channel_name') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.channel_name || '-'}
                   </td>
                 )}
                 {visibleColumns.includes('status') && (
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                     {getStatusBadge(record.status)}
                   </td>
                 )}
                 {visibleColumns.includes('created_at') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {formatDate(record.created_at)}
                   </td>
                 )}
                 {visibleColumns.includes('created_by') && (
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.created_by || '-'}
                       </td>
                 )}

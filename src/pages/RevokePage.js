@@ -51,6 +51,11 @@ const RevokePage = () => {
     return option ? option.label : statusValue;
   };
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Revoke - OneScan';
+  }, []);
+
   // Listen for data refresh and clear events from other components
   useEffect(() => {
     const handleClearData = (event) => {

@@ -252,10 +252,53 @@ const UserManagement = () => {
     }
   };
 
+  // Set document title
+  useEffect(() => {
+    // Set title immediately
+    document.title = 'User Management - OneScan';
+    
+    // Also set it after a short delay to ensure it takes effect
+    const timer = setTimeout(() => {
+      document.title = 'User Management - OneScan';
+      console.log('Title set to:', document.title);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Load users on component mount
   useEffect(() => {
     loadUsers();
   }, []);
+  
+  // Ensure title is set correctly on every render
+  useEffect(() => {
+    if (document.title !== 'User Management - OneScan') {
+      document.title = 'User Management - OneScan';
+      console.log('Title corrected to:', document.title);
+    }
+  });
+  
+  // Force title update on component mount and after data loads
+  useEffect(() => {
+    const updateTitle = () => {
+      document.title = 'User Management - OneScan';
+      console.log('Title force updated to:', document.title);
+    };
+    
+    // Update title immediately
+    updateTitle();
+    
+    // Update title after a short delay
+    const timer = setTimeout(updateTitle, 200);
+    
+    // Update title after data loads
+    if (!loading) {
+      updateTitle();
+    }
+    
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Reset form
   const resetForm = () => {

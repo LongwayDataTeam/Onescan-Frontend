@@ -287,6 +287,11 @@ const Integration = () => {
     }
   };
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Integration - OneScan';
+  }, []);
+
   // Fetch data when tab changes
   useEffect(() => {
     if (activeTab === 'wifi') {

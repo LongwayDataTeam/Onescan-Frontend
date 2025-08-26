@@ -36,6 +36,11 @@ const Dispatch = () => {
   const [lastScanTime, setLastScanTime] = useState(null);
   const [performanceMode, setPerformanceMode] = useState('ultra-fast');
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Dispatch - OneScan';
+  }, []);
+
   // Listen for clear data events from other components
   useEffect(() => {
     const handleClearData = (event) => {

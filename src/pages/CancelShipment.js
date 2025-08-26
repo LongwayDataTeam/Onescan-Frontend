@@ -18,6 +18,11 @@ const CancelShipment = () => {
   // Refs for input focus
   const cancelTrackingIdInputRef = useRef(null);
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Cancel Shipment - OneScan';
+  }, []);
+
   // Listen for data refresh and clear events from other components
   useEffect(() => {
     const handleClearData = (event) => {

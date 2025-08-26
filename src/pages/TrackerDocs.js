@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 
 const TrackerDocs = () => {
   const { user, hasPermission } = useAuthStore();
   const navigate = useNavigate();
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Tracker Documentation - OneScan';
+  }, []);
 
   if (!user) {
     navigate('/login');

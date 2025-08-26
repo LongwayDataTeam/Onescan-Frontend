@@ -75,6 +75,11 @@ const Logger = () => {
     }
   };
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'System Monitoring - OneScan';
+  }, []);
+
   // Fetch comprehensive activity summary
   const fetchSummary = async () => {
     try {
@@ -1134,9 +1139,9 @@ This suggests there's a backend issue, not an authentication issue.`);
 
   if (!hasPermission('logger')) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="min-h-screen bg-gray-50">
+        <div className="w-full">
+          <div className="bg-white p-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">System Monitoring</h1>
             <div className="text-red-600">Access denied. Insufficient permissions.</div>
           </div>
@@ -1146,16 +1151,16 @@ This suggests there's a backend issue, not an authentication issue.`);
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="w-full">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-4 sm:space-y-0">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">System Monitoring</h1>
-              <p className="text-gray-600 mt-2">Real-time monitoring of all system activities and user actions</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">System Monitoring</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-2">Real-time monitoring of all system activities and user actions</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => setRealTime(!realTime)}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -1164,14 +1169,14 @@ This suggests there's a backend issue, not an authentication issue.`);
                     : 'bg-gray-100 text-gray-700 border border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center space-x-2">
                   <Activity className="w-4 h-4" />
                   <span>{realTime ? 'Live' : 'Static'}</span>
                 </div>
               </button>
               <button
                 onClick={fetchLogs}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Refresh</span>
@@ -1189,44 +1194,44 @@ This suggests there's a backend issue, not an authentication issue.`);
 
           {/* Summary Cards */}
           {summary && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-600">Total Logs</p>
-                    <p className="text-2xl font-bold text-blue-900">{summary.total_logs?.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-medium text-blue-600">Total Logs</p>
+                    <p className="text-lg sm:text-2xl font-bold text-blue-900">{summary.total_logs?.toLocaleString()}</p>
                   </div>
-                  <Activity className="w-8 h-8 text-blue-600" />
+                  <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
                 </div>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-600">Today's Logs</p>
-                    <p className="text-2xl font-bold text-green-900">{summary.today_logs?.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-medium text-green-600">Today's Logs</p>
+                    <p className="text-lg sm:text-2xl font-bold text-green-900">{summary.today_logs?.toLocaleString()}</p>
                   </div>
-                  <TrendingUp className="w-8 h-8 text-green-600" />
+                  <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
                 </div>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <div className="bg-purple-50 p-3 sm:p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-purple-600">Active Users</p>
-                    <p className="text-2xl font-bold text-purple-900">{Object.keys(summary.user_activity || {}).length}</p>
+                    <p className="text-xs sm:text-sm font-medium text-purple-600">Active Users</p>
+                    <p className="text-lg sm:text-2xl font-bold text-purple-900">{Object.keys(summary.user_activity || {}).length}</p>
                   </div>
-                  <Users className="w-8 h-8 text-purple-600" />
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
                 </div>
               </div>
-              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <div className="bg-orange-50 p-3 sm:p-4 rounded-lg border border-orange-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-orange-600">Actions</p>
-                    <p className="text-2xl font-bold text-orange-900">{Object.keys(summary.action_breakdown || {}).length}</p>
+                    <p className="text-xs sm:text-sm font-medium text-orange-600">Actions</p>
+                    <p className="text-lg sm:text-2xl font-bold text-orange-900">{Object.keys(summary.action_breakdown || {}).length}</p>
                   </div>
-                  <BarChart3 className="w-8 h-8 text-orange-600" />
+                  <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
                 </div>
               </div>
-              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+              <div className="bg-indigo-50 p-3 sm:p-4 rounded-lg border border-indigo-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-indigo-600">Devices</p>
@@ -1266,7 +1271,7 @@ This suggests there's a backend issue, not an authentication issue.`);
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-lg mb-6">
+        <div className="bg-white mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
@@ -1295,91 +1300,91 @@ This suggests there's a backend issue, not an authentication issue.`);
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="">
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {/* System Overview Header */}
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 text-white">
-                  <div className="flex items-center justify-between">
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-4 sm:p-6 text-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                     <div>
-                      <h2 className="text-2xl font-bold mb-2">System Monitoring Dashboard</h2>
-                      <p className="text-slate-300">Real-time overview of system activities and performance metrics</p>
+                      <h2 className="text-xl sm:text-2xl font-bold mb-2">System Monitoring Dashboard</h2>
+                      <p className="text-sm sm:text-base text-slate-300">Real-time overview of system activities and performance metrics</p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-slate-400">Last Updated</div>
-                      <div className="text-lg font-semibold">{new Date().toLocaleTimeString()}</div>
+                    <div className="text-center sm:text-right">
+                      <div className="text-xs sm:text-sm text-slate-400">Last Updated</div>
+                      <div className="text-base sm:text-lg font-semibold">{new Date().toLocaleTimeString()}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Key Metrics Cards - Full Width Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                   {/* Total Activities Card */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow h-32">
+                  <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow h-28 sm:h-32">
                     <div className="flex items-center h-full">
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                        <svg className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Total Activities</p>
-                        <p className="text-2xl font-bold text-gray-900">{summary?.total_logs || 0}</p>
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">Total Activities</p>
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900">{summary?.total_logs || 0}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Today's Activities Card */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow h-32">
+                  <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow h-28 sm:h-32">
                     <div className="flex items-center h-full">
-                      <div className="p-3 bg-green-100 rounded-lg">
-                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                        <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Today's Activities</p>
-                        <p className="text-2xl font-bold text-gray-900">{summary?.today_logs || 0}</p>
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">Today's Activities</p>
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900">{summary?.today_logs || 0}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Active Users Card */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition-shadow h-32">
+                  <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border-l-4 border-purple-500 hover:shadow-xl transition-shadow h-28 sm:h-32">
                     <div className="flex items-center h-full">
-                      <div className="p-3 bg-purple-100 rounded-lg">
-                        <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="p-2 sm:p-3 bg-purple-100 rounded-lg">
+                        <svg className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                         </svg>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Active Users</p>
-                        <p className="text-2xl font-bold text-gray-900">{Object.keys(summary?.user_activity || {}).length}</p>
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">Active Users</p>
+                        <p className="text-lg sm:text-2xl font-bold text-gray-900">{Object.keys(summary?.user_activity || {}).length}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* System Health Card */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition-shadow h-32">
+                  <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border-l-4 border-orange-500 hover:shadow-xl transition-shadow h-28 sm:h-32">
                     <div className="flex items-center h-full">
-                      <div className="p-3 bg-orange-100 rounded-lg">
-                        <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="p-2 sm:p-3 bg-orange-100 rounded-lg">
+                        <svg className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">System Health</p>
-                        <p className="text-2xl font-bold text-green-600">98%</p>
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">System Health</p>
+                        <p className="text-lg sm:text-2xl font-bold text-green-600">98%</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Charts Section - Full Width */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* Activity Timeline Chart */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-80">
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow h-80">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1399,7 +1404,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                   </div>
 
                   {/* User Activity Chart */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-80">
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow h-80">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1416,9 +1421,9 @@ This suggests there's a backend issue, not an authentication issue.`);
                 </div>
 
                 {/* Detailed Breakdowns - Full Width Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
                   {/* Action Type Distribution */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-80">
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow h-80">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -1431,7 +1436,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                   </div>
 
                   {/* Result Distribution */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-80">
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow h-80">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1444,7 +1449,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                   </div>
 
                   {/* Device Distribution */}
-                  <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-80">
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow h-80">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -1461,10 +1466,10 @@ This suggests there's a backend issue, not an authentication issue.`);
 
 
                 {/* Scan Operations - Independent Full Width Section */}
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-                  <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                      <svg className="w-8 h-8 mr-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8 mb-6 sm:mb-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-3 sm:space-y-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
+                      <svg className="w-6 h-6 sm:w-8 sm:h-8 mr-3 sm:mr-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
                       📱 Scan Operations Overview
@@ -1473,27 +1478,27 @@ This suggests there's a backend issue, not an authentication issue.`);
                   </div>
                   
                   {/* Scan Metrics Grid - Full Width */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200 hover:shadow-md transition-shadow">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-6 rounded-lg border border-blue-200 hover:shadow-md transition-shadow">
                       <div className="text-center">
-                        <div className="text-sm font-medium text-blue-700 mb-2">Total Scans</div>
-                        <div className="text-3xl font-bold text-blue-900">{scanLogs.length}</div>
+                        <div className="text-xs sm:text-sm font-medium text-blue-700 mb-2">Total Scans</div>
+                        <div className="text-xl sm:text-3xl font-bold text-blue-900">{scanLogs.length}</div>
                         <div className="text-xs text-blue-600 mt-1">All time</div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border border-green-200 hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-6 rounded-lg border border-green-200 hover:shadow-md transition-shadow">
                       <div className="text-center">
-                        <div className="text-sm font-medium text-green-700 mb-2">Successful</div>
-                        <div className="text-3xl font-bold text-green-900">
+                        <div className="text-xs sm:text-sm font-medium text-green-700 mb-2">Successful</div>
+                        <div className="text-xl sm:text-3xl font-bold text-green-900">
                           {scanLogs.filter(log => log.result === 'success').length}
                         </div>
                         <div className="text-xs text-green-600 mt-1">Success rate</div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg border border-red-200 hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-red-50 to-red-100 p-3 sm:p-6 rounded-lg border border-red-200 hover:shadow-md transition-shadow">
                       <div className="text-center">
-                        <div className="text-sm font-medium text-red-700 mb-2">Failed</div>
-                        <div className="text-3xl font-bold text-red-900">
+                        <div className="text-xs sm:text-sm font-medium text-red-700 mb-2">Failed</div>
+                        <div className="text-xl sm:text-3xl font-bold text-red-900">
                           {scanLogs.filter(log => log.result === 'error').length}
                         </div>
                         <div className="text-xs text-red-600 mt-1">Error rate</div>
@@ -1589,7 +1594,7 @@ This suggests there's a backend issue, not an authentication issue.`);
             {activeTab === 'logs' && (
               <>
                 {/* Filter Controls */}
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div className="bg-white p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Filter Activity Logs</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
@@ -1717,7 +1722,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                 </div>
 
                 {/* Activity Logs Table */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Activity Logs</h3>
                     <button
@@ -1944,11 +1949,11 @@ This suggests there's a backend issue, not an authentication issue.`);
 
             {/* Scan Logs Tab */}
             {activeTab === 'scan-logs' && (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* Scan Logs Filters */}
-                <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="bg-white p-4 sm:p-6">
                   <h3 className="text-lg font-semibold mb-4">🔍 Filter Scan Logs</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Scan Action</label>
                       <select
@@ -2026,7 +2031,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mt-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
                       <input
@@ -2045,10 +2050,10 @@ This suggests there's a backend issue, not an authentication issue.`);
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <div className="flex items-end space-x-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-end space-y-2 sm:space-y-0 sm:space-x-2">
                       <button
                         onClick={fetchScanLogs}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                       >
                         Apply Filters
                       </button>
@@ -2066,7 +2071,7 @@ This suggests there's a backend issue, not an authentication issue.`);
                           }));
                           fetchScanLogs();
                         }}
-                        className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                        className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
                       >
                         Clear
                       </button>
@@ -2174,70 +2179,70 @@ This suggests there's a backend issue, not an authentication issue.`);
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-white p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
                     <h3 className="text-lg font-semibold">📱 Scan Logs</h3>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
                       <button
                         onClick={fetchScanLogs}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm"
                       >
                         <RefreshCw className="w-4 h-4" />
                         <span>Refresh</span>
                       </button>
                       <button
                         onClick={fetchAllScanLogs}
-                        className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2 text-sm"
                       >
                         <RefreshCw className="w-4 h-4" />
                         <span>Load ALL</span>
                       </button>
                       <button
                         onClick={exportScanLogs}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 text-sm"
                       >
                         <Download className="w-4 h-4" />
                         <span>Export CSV</span>
                       </button>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 text-center sm:text-left">
                         {scanLogs.length} scan operations
                       </span>
                     </div>
                   </div>
                   
                   {/* Comprehensive Scan Statistics Header */}
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mb-4 border border-blue-200">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 sm:p-4 rounded-lg mb-4 border border-blue-200">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-900">{scanLogs.length}</div>
+                        <div className="text-lg sm:text-2xl font-bold text-blue-900">{scanLogs.length}</div>
                         <div className="text-xs text-blue-700">Total Scans</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-900">
+                        <div className="text-lg sm:text-2xl font-bold text-green-900">
                           {scanLogs.filter(log => log.result === 'success').length}
                         </div>
                         <div className="text-xs text-green-700">Successful</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-red-900">
+                        <div className="text-lg sm:text-2xl font-bold text-red-900">
                           {scanLogs.filter(log => log.result === 'error').length}
                         </div>
                         <div className="text-xs text-red-700">Failed</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-900">
+                        <div className="text-lg sm:text-2xl font-bold text-purple-900">
                           {new Set(scanLogs.map(log => log.action)).size}
                         </div>
                         <div className="text-xs text-purple-700">Action Types</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-900">
+                        <div className="text-lg sm:text-2xl font-bold text-orange-900">
                           {new Set(scanLogs.map(log => log.username)).size}
                         </div>
                         <div className="text-xs text-orange-700">Users</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-indigo-900">
+                        <div className="text-lg sm:text-2xl font-bold text-indigo-900">
                           {new Set(scanLogs.map(log => log.tracking_id)).size}
                         </div>
                         <div className="text-xs text-indigo-700">Tracking IDs</div>
@@ -2247,12 +2252,11 @@ This suggests there's a backend issue, not an authentication issue.`);
                     {/* Data Status Information */}
                     <div className="mt-4 pt-4 border-t border-blue-200">
                       <div className="text-center">
-                        <div className="text-sm text-blue-700">
+                        <div className="text-xs sm:text-sm text-blue-700">
                           📊 <strong>Data Status:</strong> Showing {scanLogs.length} scan logs • 
                           Last updated: {new Date().toLocaleTimeString()} • 
                           Data source: Comprehensive Activity Logs
                         </div>
-
                       </div>
                     </div>
                   </div>

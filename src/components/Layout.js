@@ -267,7 +267,6 @@ const Layout = () => {
                
                {/* Breadcrumb */}
                <div className="flex items-center space-x-2">
-                 <span className="text-gray-400">/</span>
                  <h2 className="text-lg font-semibold text-gray-900">
                    {displayNavigation.find(item => item.path === location.pathname)?.name || 'Label Scanning'}
                  </h2>

@@ -20,6 +20,11 @@ const Login = () => {
 
 
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Login - OneScan';
+  }, []);
+
   // Check if user is already authenticated
   useEffect(() => {
     if (isAuthenticated) {

@@ -246,6 +246,11 @@ const LabelScanning = () => {
     }
   }, []);
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Label Scanning - OneScan';
+  }, []);
+
   // Update courier stats when scan details change
   useEffect(() => {
     calculateCourierStats();

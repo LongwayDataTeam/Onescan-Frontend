@@ -399,21 +399,26 @@ const DataView = () => {
 
 
 
-  // KPI Card Component
-  const KPICard = ({ title, value, icon: Icon, color, description }) => (
-    <div className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${color}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{(value || 0).toLocaleString()}</p>
-          <p className="text-xs text-gray-500">{description}</p>
-        </div>
-        <div className={`p-3 rounded-full ${color.replace('border-l-', 'bg-').replace('-500', '-100')}`}>
-          <Icon className={`w-6 h-6 ${color.replace('border-l-', 'text-').replace('-500', '-600')}`} />
-        </div>
-      </div>
-    </div>
-  );
+     // KPI Card Component
+   const KPICard = ({ title, value, icon: Icon, color, description }) => (
+     <div className={`bg-white p-3 sm:p-6 border-l-4 ${color}`}>
+       <div className="flex items-center justify-between">
+         <div className="min-w-0 flex-1">
+           <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{title}</p>
+           <p className="text-lg sm:text-2xl font-bold text-gray-900">{(value || 0).toLocaleString()}</p>
+           <p className="text-xs text-gray-500 hidden sm:block">{description}</p>
+         </div>
+         <div className={`p-2 sm:p-3 rounded-full flex-shrink-0 ${color.replace('border-l-', 'bg-').replace('-500', '-100')}`}>
+           <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${color.replace('border-l-', 'text-').replace('-500', '-600')}`} />
+         </div>
+       </div>
+     </div>
+   );
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Data View - OneScan';
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
@@ -434,53 +439,55 @@ const DataView = () => {
   }, [searchTerm, fetchData]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="w-full space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Data View & Management</h1>
-              <p className="text-gray-600">View, filter, and manage your data with real-time KPIs</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Data View & Management</h1>
+              <p className="text-sm sm:text-base text-gray-600">View, filter, and manage your data with real-time KPIs</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => setShowStats(!showStats)}
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 <BarChart3 className="w-4 h-4 mr-2" />
-                {showStats ? 'Hide KPIs' : 'Show KPIs'}
+                <span className="hidden sm:inline">{showStats ? 'Hide KPIs' : 'Show KPIs'}</span>
+                <span className="sm:hidden">{showStats ? 'Hide' : 'Show'}</span>
               </button>
               <button
                 onClick={() => setShowDataDisplay(!showDataDisplay)}
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 <Table className="w-4 h-4 mr-2" />
-                {showDataDisplay ? 'Hide Table' : 'Show Table'}
+                <span className="hidden sm:inline">{showDataDisplay ? 'Hide Table' : 'Show Table'}</span>
+                <span className="sm:hidden">{showDataDisplay ? 'Hide' : 'Show'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* KPI Section */}
-        {showStats && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                KPI Section
-              </h2>
-              <button
-                onClick={handleRefreshKPIs}
-                className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-                disabled={refreshingKPIs}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshingKPIs ? 'animate-spin' : ''}`} />
-                🔄 Refresh KPIs
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+                 {/* KPI Section */}
+         {showStats && (
+           <div className="bg-white p-4 sm:p-6">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                 <TrendingUp className="w-5 h-5 mr-2" />
+                 KPI Section
+               </h2>
+               <button
+                 onClick={handleRefreshKPIs}
+                 className="flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors w-full sm:w-auto"
+                 disabled={refreshingKPIs}
+               >
+                 <RefreshCw className={`w-4 h-4 mr-2 ${refreshingKPIs ? 'animate-spin' : ''}`} />
+                 🔄 Refresh KPIs
+               </button>
+             </div>
+             
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
               <KPICard
                 title="Total Upload"
                 value={kpiMetrics.total_upload}
@@ -540,23 +547,23 @@ const DataView = () => {
           </div>
         )}
                 
-        {/* Filters Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Filter className="w-5 h-5 mr-2" />
-              Filters
-            </h2>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
-          </div>
+                 {/* Filters Section */}
+         <div className="bg-white p-4 sm:p-6">
+           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+             <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+               <Filter className="w-5 h-5 mr-2" />
+               Filters
+             </h2>
+             <button
+               onClick={() => setShowFilters(!showFilters)}
+               className="text-sm text-blue-600 hover:text-blue-800 w-full sm:w-auto text-center"
+             >
+               {showFilters ? 'Hide Filters' : 'Show Filters'}
+             </button>
+           </div>
 
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+           {showFilters && (
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
               {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -632,29 +639,29 @@ const DataView = () => {
             </div>
           )}
           
-          {/* Filter Actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={applyFilters}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Apply Filters
-              </button>
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                Clear All
-              </button>
-              <div className="relative delete-menu-container">
-                <button
-                  onClick={() => setShowDeleteMenu(!showDeleteMenu)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Data</span>
-                </button>
+                     {/* Filter Actions */}
+           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+               <button
+                 onClick={applyFilters}
+                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+               >
+                 Apply Filters
+               </button>
+               <button
+                 onClick={clearFilters}
+                 className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+               >
+                 Clear All
+               </button>
+               <div className="relative delete-menu-container">
+                 <button
+                   onClick={() => setShowDeleteMenu(!showDeleteMenu)}
+                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center space-x-2 text-sm"
+                 >
+                   <Trash2 className="w-4 h-4" />
+                   <span>Delete Data</span>
+                 </button>
                 
                 {showDeleteMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
@@ -692,60 +699,60 @@ const DataView = () => {
               </div>
             </div>
           
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-2">
-                <span>Cache:</span>
-                <button
-                  onClick={() => setIsCacheEnabled(!isCacheEnabled)}
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    isCacheEnabled 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {isCacheEnabled ? 'Enabled' : 'Disabled'}
-                </button>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <span>Large Dataset:</span>
-                <button
-                  onClick={() => setUseLargeDatasetMode(!useLargeDatasetMode)}
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    useLargeDatasetMode 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {useLargeDatasetMode ? 'Enabled' : 'Disabled'}
-                </button>
-              </div>
-            </div>
+                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 text-sm text-gray-600">
+               <div className="flex items-center justify-center sm:justify-start space-x-2">
+                 <span>Cache:</span>
+                 <button
+                   onClick={() => setIsCacheEnabled(!isCacheEnabled)}
+                   className={`px-2 py-1 rounded text-xs font-medium ${
+                     isCacheEnabled 
+                       ? 'bg-green-100 text-green-800' 
+                       : 'bg-red-100 text-red-800'
+                   }`}
+                 >
+                   {isCacheEnabled ? 'Enabled' : 'Disabled'}
+                 </button>
+               </div>
+               
+               <div className="flex items-center justify-center sm:justify-start space-x-2">
+                 <span>Large Dataset:</span>
+                 <button
+                   onClick={() => setUseLargeDatasetMode(!useLargeDatasetMode)}
+                   className={`px-2 py-1 rounded text-xs font-medium ${
+                     useLargeDatasetMode 
+                       ? 'bg-blue-100 text-blue-800' 
+                       : 'bg-gray-100 text-gray-600'
+                   }`}
+                 >
+                   {useLargeDatasetMode ? 'Enabled' : 'Disabled'}
+                 </button>
+               </div>
+             </div>
           </div>
         </div>
 
-        {/* Data Table Section */}
-        {showDataDisplay && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                <Table className="w-5 h-5 mr-2" />
-                Data Table
-              </h2>
-              
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">
-                  Total: {totalCount.toLocaleString()} records
-                </span>
-                <button
-                  onClick={() => fetchData(currentPage, false)}
-                  disabled={loading}
-                  className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
+                 {/* Data Table Section */}
+         {showDataDisplay && (
+           <div className="bg-white p-4 sm:p-6">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                 <Table className="w-5 h-5 mr-2" />
+                 Data Table
+               </h2>
+               
+               <div className="flex items-center justify-center sm:justify-end space-x-3">
+                 <span className="text-sm text-gray-600">
+                   Total: {totalCount.toLocaleString()} records
+                 </span>
+                 <button
+                   onClick={() => fetchData(currentPage, false)}
+                   disabled={loading}
+                   className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                 >
+                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                 </button>
+               </div>
+             </div>
             
             {/* Data Table */}
             <DataDisplayTable 
@@ -761,15 +768,15 @@ const DataView = () => {
               onPageSizeChange={setPageSize}
             />
             
-            {/* Pagination Info */}
-            <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} results
-              </span>
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
-            </div>
+                         {/* Pagination Info */}
+             <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600 space-y-2 sm:space-y-0 text-center sm:text-left">
+               <span>
+                 Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} results
+               </span>
+               <span>
+                 Page {currentPage} of {totalPages}
+               </span>
+             </div>
           </div>
         )}
       </div>

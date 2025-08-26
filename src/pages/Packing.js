@@ -35,6 +35,11 @@ const Packing = () => {
   const gCodeInputRef = useRef(null);
   const pendingTrackingIdInputRef = useRef(null);
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'Packing - OneScan';
+  }, []);
+
   // Listen for clear data events from other components
   useEffect(() => {
     const handleClearData = (event) => {

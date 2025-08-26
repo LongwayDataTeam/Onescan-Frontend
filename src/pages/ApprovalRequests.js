@@ -34,6 +34,11 @@ const ApprovalRequests = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [activeTab, setActiveTab] = useState('user'); // 'user' or 'password'
   
+  // Set document title
+  useEffect(() => {
+    document.title = 'Approval Requests - OneScan';
+  }, []);
+
   // Set active tab based on navigation state or URL
   useEffect(() => {
     if (location.state?.activeTab) {

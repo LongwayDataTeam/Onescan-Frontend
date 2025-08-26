@@ -45,6 +45,11 @@ const UserProfile = () => {
   const [passwordRequests, setPasswordRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
 
+  // Set document title
+  useEffect(() => {
+    document.title = 'User Profile - OneScan';
+  }, []);
+
   // Load user data on component mount
   useEffect(() => {
     if (currentUser) {

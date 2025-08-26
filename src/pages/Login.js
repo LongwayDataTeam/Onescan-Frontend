@@ -28,7 +28,7 @@ const Login = () => {
   // Check if user is already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-              navigate('/label-scanning');
+              navigate('/data-view');
     }
   }, [isAuthenticated, navigate]);
 
@@ -96,7 +96,7 @@ const Login = () => {
       
       if (result.success) {
         toast.success('Login successful!');
-        navigate('/label-scanning');
+        navigate('/data-view');
       } else {
         toast.error(result.error || 'Login failed');
       }
@@ -113,20 +113,7 @@ const Login = () => {
     }
   };
 
-  const testDeviceInfo = async () => {
-    try {
-      const result = await testDeviceInfoCollection();
-      if (result) {
-        toast.success('Device info collection test successful! Check console for details.');
-        console.log('Device info test result:', result);
-      } else {
-        toast.error('Device info collection test failed! Check console for details.');
-      }
-    } catch (error) {
-      toast.error('Device info collection test error! Check console for details.');
-      console.error('Device info test error:', error);
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -211,35 +198,7 @@ const Login = () => {
                 Device and location information is automatically collected for security and audit purposes.
               </p>
               
-              {/* WiFi Access Control Notice */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-800">
-                      🔐 WiFi Access Control System
-                    </h3>
-                    <div className="mt-2 text-sm text-blue-700">
-                      <p>
-                        <strong>Access is controlled by your current WiFi network:</strong>
-                      </p>
-                      <ul className="mt-1 list-disc list-inside">
-                        <li>✅ <strong>Captured Networks</strong> - Automatically allow access for all users</li>
-                        <li>👨‍💻 <strong>Developer Role</strong> - Can access from any network for security analysis</li>
-                        <li>⏸️ <strong>Paused Networks</strong> - Temporarily block access</li>
-                        <li>🏢 <strong>Company Networks</strong> - Traditional authorized networks</li>
-                      </ul>
-                      <p className="mt-2 text-xs">
-                        <em>If your network isn't working, contact IT to capture and authorize it!</em>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
               
               {/* Device Info Collection Status */}
               <div className="flex items-center justify-center space-x-2 mt-3">
@@ -263,16 +222,7 @@ const Login = () => {
                 </div>
               )}
               
-              {/* Test Button (Optional) */}
-              <div className="mt-3 text-center">
-                <button
-                  type="button"
-                  onClick={testDeviceInfo}
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  🧪 Test Collection
-                </button>
-              </div>
+              
             </div>
 
             

@@ -27,7 +27,13 @@ const Layout = () => {
   // Navigation items with role-based access
   const navigationItems = [
     {
-      name: 'Label Scanning',
+      name: 'Dashboard',
+      path: '/data-view',
+      icon: Database,
+      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
+    },
+    {
+      name: 'Label',
       path: '/label-scanning',
       icon: Package,
       roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
@@ -56,17 +62,12 @@ const Layout = () => {
       icon: Upload,
       roles: ['super_admin', 'developer', 'admin', 'manager'],
     },
-    {
-      name: 'Data View',
-      path: '/data-view',
-      icon: Database,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
-    },
+    
     {
       name: 'Revoke',
       path: '/revoke',
       icon: Settings,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
+      roles: ['super_admin', 'developer', 'admin'],
     },
     {
       name: 'User Management',
@@ -102,7 +103,7 @@ const Layout = () => {
       name: 'Monitoring',
       path: '/logger',
       icon: BarChart3,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
+      roles: ['super_admin', 'developer'],
     },
   ];
 

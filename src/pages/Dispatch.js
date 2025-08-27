@@ -287,8 +287,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Focus back to input for next scan
-        trackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -304,8 +308,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Focus back to input for next scan
-        trackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -321,8 +329,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Focus back to input for next scan
-        trackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -370,7 +382,10 @@ const Dispatch = () => {
         
         setTrackingId('');
         // Focus back to input for next scan
-        trackingIdInputRef.current?.focus();
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
       } else {
         toast.error(response.data?.message || 'Dispatch scan failed');
         
@@ -392,6 +407,13 @@ const Dispatch = () => {
           message: response.data?.message || 'Dispatch scan failed',
           user: user?.username || user?.user_id || 'Unknown'
         });
+        
+        // Clear input field and focus for next scan after error
+        setTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
       }
     } catch (error) {
       console.error('Dispatch scan error:', error);
@@ -427,11 +449,15 @@ const Dispatch = () => {
         user: user?.username || user?.user_id || 'Unknown'
       });
       
-      // Focus back to input for next scan after error
-      trackingIdInputRef.current?.focus();
-    } finally {
-      setScanningLoading(false);
-    }
+              // Clear input field and focus back to input for next scan after error
+        setTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          trackingIdInputRef.current?.focus();
+        }, 100);
+      } finally {
+        setScanningLoading(false);
+      }
   };
 
   // Handle Dispatch Pending
@@ -460,8 +486,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Focus back to input for next scan
-        pendingTrackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setPendingTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          pendingTrackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -477,8 +507,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Focus back to input for next scan
-        pendingTrackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setPendingTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          pendingTrackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -494,8 +528,12 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Focus back to input for next scan
-        pendingTrackingIdInputRef.current?.focus();
+        // Clear input field and focus back to input for next scan
+        setPendingTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          pendingTrackingIdInputRef.current?.focus();
+        }, 100);
         return;
       }
       
@@ -530,7 +568,10 @@ const Dispatch = () => {
       
       setPendingTrackingId('');
       // Focus back to input
-      pendingTrackingIdInputRef.current?.focus();
+      // Small delay to ensure DOM update before focus
+      setTimeout(() => {
+        pendingTrackingIdInputRef.current?.focus();
+      }, 100);
     } catch (error) {
       console.error('Dispatch pending scan error:', error);
       
@@ -557,11 +598,15 @@ const Dispatch = () => {
         user: user?.username || user?.user_id || 'Unknown'
       });
       
-      // Focus back to input for next scan after error
-      pendingTrackingIdInputRef.current?.focus();
-    } finally {
-      setPendingLoading(false);
-    }
+              // Clear input field and focus back to input for next scan after error
+        setPendingTrackingId('');
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          pendingTrackingIdInputRef.current?.focus();
+        }, 100);
+      } finally {
+        setPendingLoading(false);
+      }
   };
 
   // Handle Enter key press for tracking ID input

@@ -554,6 +554,88 @@ const DataUpload = () => {
      </div>
    );
 
+  // Export all data to CSV
+  const handleExportToCSV = async () => {
+    try {
+      setLoading(true);
+      setError('🔄 Exporting data to CSV...');
+      
+      // Fetch all data for export
+      const response = await dataAPI.getAllDataForStats();
+      
+      if (response.data?.data?.records && Array.isArray(response.data.data.records)) {
+        const records = response.data.data.records;
+        
+        // Define CSV headers based on available columns
+        const csvHeaders = [
+          'Tracking ID',
+          'Tracking No', 
+          'Order ID',
+          'G Code',
+          'EAN',
+          'SKU',
+          'Quantity',
+          'Amount',
+          'Courier',
+          'Channel',
+          'Status',
+          'Created At',
+          'Created By'
+        ];
+        
+        // Convert data to CSV format
+        const csvContent = [
+          csvHeaders.join(','),
+          ...records.map(record => [
+            `"${record.tracking_id || ''}"`,
+            `"${record.tracking_no || ''}"`,
+            `"${record.order_id || ''}"`,
+            `"${record.g_code || ''}"`,
+            `"${record.ean || ''}"`,
+            `"${record.sku || ''}"`,
+            `"${record.qty || ''}"`,
+            `"${record.amount || ''}"`,
+            `"${record.courier || ''}"`,
+            `"${record.channel_name || ''}"`,
+            `"${record.status || ''}"`,
+            `"${record.created_at || ''}"`,
+            `"${record.created_by || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        // Create and download CSV file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `onescan_data_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`✅ Data exported successfully! ${records.length.toLocaleString()} records exported to CSV`);
+        playSuccessSound();
+        setError('');
+      } else {
+        toast.error('No data available for export');
+        setError('No data available for export');
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      toast.error('Failed to export data. Please try again.');
+      try {
+        await playErrorSound();
+        console.log('🔊 DataUpload: Error sound triggered for export failure');
+      } catch (error) {
+        console.error('🔊 DataUpload: Failed to trigger error sound:', error);
+      }
+      setError('Failed to export data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="w-full space-y-4 sm:space-y-6">
@@ -833,6 +915,14 @@ const DataUpload = () => {
                >
                  Clear All
                </button>
+                 <button
+                   onClick={handleExportToCSV}
+                   disabled={loading}
+                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center justify-center space-x-2"
+                 >
+                   <Download className="w-4 h-4" />
+                   <span>Export CSV</span>
+                 </button>
                  <div className="relative delete-menu-container">
                    <button
                      onClick={() => setShowDeleteMenu(!showDeleteMenu)}

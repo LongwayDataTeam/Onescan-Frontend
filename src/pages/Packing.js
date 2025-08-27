@@ -570,6 +570,13 @@ const Packing = () => {
           message: response.data?.message || 'Failed to move to dispatch pending',
           user: user?.username || user?.user_id || 'Unknown'
         });
+        
+        // Clear input fields and focus for next scan after error
+        setTrackingId('');
+        setGCode('');
+        setTrackingIdValidated(false);
+        setTrackingRecord(null);
+        setShouldFocusTrackingId(true);
       }
     } catch (error) {
       toast.error('Failed to move to dispatch pending');
@@ -585,6 +592,13 @@ const Packing = () => {
         message: error.message || 'Network/API call failed',
         user: user?.username || user?.user_id || 'Unknown'
       });
+      
+              // Clear input fields and focus for next scan after error
+        setTrackingId('');
+        setGCode('');
+        setTrackingIdValidated(false);
+        setTrackingRecord(null);
+        setShouldFocusTrackingId(true);
     } finally {
       setDispatchPendingLoading(false);
     }
@@ -767,7 +781,10 @@ const Packing = () => {
         
         setPendingTrackingId('');
         // Focus back to input
-        pendingTrackingIdInputRef.current?.focus();
+        // Small delay to ensure DOM update before focus
+        setTimeout(() => {
+          pendingTrackingIdInputRef.current?.focus();
+        }, 100);
       } else {
         toast.error(response.data?.message || 'Failed to mark as pending');
         
@@ -781,6 +798,10 @@ const Packing = () => {
           message: response.data?.message || 'Failed to mark as pending',
           user: user?.username || user?.user_id || 'Unknown'
         });
+        
+        // Clear input field and focus for next scan after error
+        setPendingTrackingId('');
+        pendingTrackingIdInputRef.current?.focus();
       }
     } catch (error) {
       toast.error('Packing pending failed');
@@ -796,6 +817,9 @@ const Packing = () => {
         message: error.message || 'Network/API call failed',
         user: user?.username || user?.user_id || 'Unknown'
       });
+      
+      // Clear input field for next scan after error
+      setPendingTrackingId('');
     } finally {
       setPendingLoading(false);
     }

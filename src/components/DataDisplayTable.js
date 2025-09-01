@@ -21,7 +21,7 @@ const DataDisplayTable = ({
   onPageSizeChange
 }) => {
   const [visibleColumns, setVisibleColumns] = useState([
-    'tracking_id', 'tracking_no', 'order_id', 'status', 'courier', 'channel_name', 'created_at'
+    'tracking_id', 'tracking_no', 'order_id', 'g_code', 'ean', 'packed_g_code', 'sku', 'status', 'courier', 'channel_name', 'created_at'
   ]);
   
   const [sortConfig, setSortConfig] = useState({
@@ -36,6 +36,7 @@ const DataDisplayTable = ({
     { key: 'order_id', label: 'Order ID', width: 120 },
     { key: 'g_code', label: 'G Code', width: 100 },
     { key: 'ean', label: 'EAN', width: 120 },
+    { key: 'packed_g_code', label: 'Replace G-Code/EAN', width: 150 },
     { key: 'sku', label: 'SKU', width: 120 },
     { key: 'qty', label: 'Qty', width: 80 },
     { key: 'amount', label: 'Amount', width: 100 },
@@ -276,6 +277,22 @@ const DataDisplayTable = ({
                 {visibleColumns.includes('ean') && (
                   <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
                     {record.ean || '-'}
+                  </td>
+                )}
+                {visibleColumns.includes('packed_g_code') && (
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
+                    {record.packed_g_code && record.packed_g_code !== record.g_code ? (
+                      <div className="flex flex-col">
+                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs mb-1">
+                          {record.packed_g_code}
+                        </span>
+                        <span className="text-xs text-gray-500">(Replaced from: {record.g_code})</span>
+                      </div>
+                    ) : record.packed_g_code ? (
+                      <span className="text-gray-700">{record.packed_g_code}</span>
+                    ) : (
+                      <span className="text-gray-700">{record.g_code || '-'}</span>
+                    )}
                   </td>
                 )}
                 {visibleColumns.includes('sku') && (

@@ -31,10 +31,19 @@ const Packing = () => {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [dispatchPendingLoading, setDispatchPendingLoading] = useState(false);
   
+  // Replacement State
+  const [replacementTrackingId, setReplacementTrackingId] = useState('');
+  const [replacementSKUs, setReplacementSKUs] = useState([]);
+  const [selectedSKU, setSelectedSKU] = useState('');
+  const [newPackedGCode, setNewPackedGCode] = useState('');
+  const [replacementLoading, setReplacementLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  
   // Refs for input focus
   const trackingIdInputRef = useRef(null);
   const gCodeInputRef = useRef(null);
   const pendingTrackingIdInputRef = useRef(null);
+  const replacementTrackingIdInputRef = useRef(null);
 
   // Set document title
   useEffect(() => {
@@ -825,6 +834,9 @@ const Packing = () => {
     }
   };
 
+  // Replacement Functions (first duplicate removed)
+  
+
   // Debug function to check the current state of a tracking ID and its orders
   const debugTrackingId = async (trackingIdValue) => {
     if (!trackingIdValue.trim()) {
@@ -888,6 +900,158 @@ const Packing = () => {
     }
   };
 
+  // Replacement Functions
+  const handleGetSKUs = async () => {
+    if (!replacementTrackingId.trim()) {
+      toast.error('Please enter Tracking ID');
+      return;
+    }
+
+    setReplacementLoading(true);
+    try {
+      console.log('🔍 REPLACEMENT: Getting SKUs for tracking ID:', replacementTrackingId);
+      
+      const response = await scanAPI.getTrackingSKUs({
+        tracking_id: replacementTrackingId.trim(),
+        user_id: user?.user_id
+      });
+
+      if (response.data?.success) {
+        setReplacementSKUs(response.data.skus || []);
+        toast.success(`Found ${response.data.skus?.length || 0} SKUs for ${replacementTrackingId}`);
+        
+        // ✅ SUCCESS LOGGER: Add to table and console
+        addScanLog({
+          type: 'success',
+          action: 'Get SKUs',
+          tracking_id: replacementTrackingId.trim(),
+          g_code_ean: 'N/A',
+          status: 'Success',
+          message: `Found ${response.data.skus?.length || 0} SKUs for replacement`,
+          user: user?.username || user?.user_id || 'Unknown'
+        });
+        
+        // Clear previous selections
+        setSelectedSKU('');
+        setNewPackedGCode('');
+      } else {
+        toast.error(response.data?.message || 'Failed to get SKUs');
+        
+        // ❌ ERROR LOGGER: Add to table and console
+        addScanLog({
+          type: 'error',
+          action: 'Get SKUs',
+          tracking_id: replacementTrackingId.trim(),
+          g_code_ean: 'N/A',
+          status: 'Failed',
+          message: response.data?.message || 'Failed to get SKUs',
+          user: user?.username || user?.user_id || 'Unknown'
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to get SKUs');
+      console.error('Get SKUs error:', error);
+      
+      // ❌ NETWORK/API ERROR LOGGER: Add to table and console
+      addScanLog({
+        type: 'error',
+        action: 'Get SKUs',
+        tracking_id: replacementTrackingId.trim(),
+        g_code_ean: 'N/A',
+        status: 'Network Error',
+        message: error.message || 'Network/API call failed',
+        user: user?.username || user?.user_id || 'Unknown'
+      });
+    } finally {
+      setReplacementLoading(false);
+    }
+  };
+
+  const handleUpdatePackedGCode = async () => {
+    if (!selectedSKU || !newPackedGCode.trim()) {
+      toast.error('Please select SKU and enter new packed G-Code');
+      return;
+    }
+
+    setUpdateLoading(true);
+    try {
+      console.log('🔄 REPLACEMENT: Updating packed G-Code:', {
+        tracking_id: replacementTrackingId,
+        sku: selectedSKU,
+        new_packed_g_code: newPackedGCode
+      });
+      
+      const response = await scanAPI.updatePackedGCode({
+        tracking_id: replacementTrackingId.trim(),
+        sku: selectedSKU,
+        packed_g_code: newPackedGCode.trim(),
+        user_id: user?.user_id
+      });
+
+      if (response.data?.success) {
+        toast.success(`Packed G-Code updated successfully for SKU ${selectedSKU}`);
+        
+        // ✅ SUCCESS LOGGER: Add to table and console
+        addScanLog({
+          type: 'success',
+          action: 'Update Packed G-Code',
+          tracking_id: replacementTrackingId.trim(),
+          g_code_ean: newPackedGCode.trim(),
+          status: 'Success',
+          message: `Updated packed G-Code for SKU ${selectedSKU} from '${response.data.old_packed_g_code || 'None'}' to '${newPackedGCode.trim()}'`,
+          user: user?.username || user?.user_id || 'Unknown'
+        });
+        
+        // Clear form
+        setNewPackedGCode('');
+        
+        // Refresh SKUs to show updated data
+        await handleGetSKUs();
+        
+        // 🚀 TRIGGER GLOBAL DATA REFRESH: Notify other components to refresh their data
+        const refreshEvent = new CustomEvent('refreshAllTrackingData', {
+          detail: {
+            action: 'replacement_update_success',
+            tracking_id: replacementTrackingId.trim(),
+            sku: selectedSKU,
+            new_packed_g_code: newPackedGCode.trim(),
+            timestamp: new Date().toISOString()
+          }
+        });
+        window.dispatchEvent(refreshEvent);
+      } else {
+        toast.error(response.data?.message || 'Failed to update packed G-Code');
+        
+        // ❌ ERROR LOGGER: Add to table and console
+        addScanLog({
+          type: 'error',
+          action: 'Update Packed G-Code',
+          tracking_id: replacementTrackingId.trim(),
+          g_code_ean: newPackedGCode.trim(),
+          status: 'Failed',
+          message: response.data?.message || 'Failed to update packed G-Code',
+          user: user?.username || user?.user_id || 'Unknown'
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to update packed G-Code');
+      console.error('Update packed G-Code error:', error);
+      
+      // ❌ NETWORK/API ERROR LOGGER: Add to table and console
+      addScanLog({
+        type: 'error',
+        action: 'Update Packed G-Code',
+        tracking_id: replacementTrackingId.trim(),
+        g_code_ean: newPackedGCode.trim(),
+        status: 'Network Error',
+        message: error.message || 'Network/API call failed',
+        user: user?.username || user?.user_id || 'Unknown'
+      });
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -922,6 +1086,17 @@ const Packing = () => {
           >
             <Clock className="w-4 h-4 inline mr-2" />
             Packing Pending
+          </button>
+          <button
+            onClick={() => setActiveTab('replacement')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'replacement'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Search className="w-4 h-4 inline mr-2" />
+            Replacement
           </button>
         </nav>
       </div>
@@ -1290,7 +1465,181 @@ const Packing = () => {
           </div>
         </div>
       )}
-      
+
+      {/* Replacement Tab Content */}
+      {activeTab === 'replacement' && (
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                G-Code/EAN Replacement
+              </h2>
+              <p className="text-sm text-gray-600">
+                Update packed G-Code/EAN for specific SKUs in a tracking ID
+              </p>
+            </div>
+            
+              {/* Step 1: Enter Tracking ID */}
+            <div className="mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-lg font-medium text-blue-900 mb-3">Step 1: Enter Tracking ID</h3>
+                <div className="flex gap-3">
+                    <input
+                      ref={replacementTrackingIdInputRef}
+                      type="text"
+                      value={replacementTrackingId}
+                      onChange={(e) => setReplacementTrackingId(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleGetSKUs()}
+                    placeholder="Enter Tracking ID"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={replacementLoading}
+                  />
+                  <button
+                    onClick={handleGetSKUs}
+                    disabled={replacementLoading || !replacementTrackingId.trim()}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {replacementLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Get SKUs
+                      </>
+                    )}
+                  </button>
+                </div>
+                </div>
+              </div>
+
+              {/* Step 2: Select SKU and Update G-Code */}
+              {replacementSKUs.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-green-900 mb-3">
+                    Step 2: Select SKU and Update Packed G-Code/EAN
+                  </h3>
+                  
+                  {/* SKU Selection */}
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select SKU:
+                      </label>
+                      <select
+                        value={selectedSKU}
+                      onChange={(e) => {
+                        setSelectedSKU(e.target.value);
+                        const selectedSkuData = replacementSKUs.find(sku => sku.sku === e.target.value);
+                        setNewPackedGCode(selectedSkuData?.current_packed_g_code || '');
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="">Select a SKU...</option>
+                      {replacementSKUs.map((sku) => (
+                        <option key={sku.sku} value={sku.sku}>
+                          {sku.sku} - Qty: {sku.qty} - Current: {sku.current_packed_g_code || 'None'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                  {/* New Packed G-Code Input */}
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Packed G-Code/EAN:
+                      </label>
+                      <input
+                        type="text"
+                        value={newPackedGCode}
+                        onChange={(e) => setNewPackedGCode(e.target.value)}
+                      placeholder="Enter new packed G-Code/EAN"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                  </div>
+                  
+                  {/* Update Button */}
+                    <button
+                      onClick={handleUpdatePackedGCode}
+                      disabled={updateLoading || !selectedSKU || !newPackedGCode.trim()}
+                    className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {updateLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Update Packed G-Code
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {/* SKU Information Table */}
+              {replacementSKUs.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">SKU Information</h3>
+                  <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-100">
+                        <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            SKU
+                          </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            Original G-Code
+                          </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            EAN
+                          </th>
+                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            Quantity
+                          </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            Current Packed G-Code
+                          </th>
+                        </tr>
+                      </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {replacementSKUs.map((sku, index) => (
+                        <tr key={sku.sku} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                              {sku.sku}
+                            </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                              {sku.g_code}
+                            </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                              {sku.ean}
+                            </td>
+                          <td className="px-4 py-3 text-sm text-center text-gray-700">
+                              {sku.qty}
+                            </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {sku.current_packed_g_code || (
+                              <span className="text-gray-400 italic">Not set</span>
+                            )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+          </div>
+        </div>
+      )}
       {/* Courier Summary Section */}
       <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -1502,6 +1851,8 @@ const Packing = () => {
             )}
           </div>
         )}
+
+
       </div>
     </div>
   );

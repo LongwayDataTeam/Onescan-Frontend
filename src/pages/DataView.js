@@ -158,6 +158,9 @@ const DataView = () => {
       const useLargeDatasetEndpoint = useLargeDatasetMode || totalCount > 10000 || page > 10;
       const endpoint = useLargeDatasetEndpoint ? 'large-dataset' : 'optimized-data';
       
+      // Add cache-busting parameter to force fresh data
+      const cacheBuster = Date.now();
+      
       console.log(`📡 Fetching from API endpoint: /data/${endpoint} (totalCount: ${totalCount}, page: ${page}, manual mode: ${useLargeDatasetMode})`);
       
       // Fetch from appropriate API endpoint
@@ -168,7 +171,8 @@ const DataView = () => {
           status_filter: statusFilter || undefined,
           courier_filter: courierFilter || undefined,
           channel_filter: channelFilter || undefined,
-          search_term: searchTerm || undefined
+          search_term: searchTerm || undefined,
+          _t: cacheBuster // Cache-busting parameter
         })
         : await dataAPI.getOptimizedData({
           page,
@@ -176,7 +180,8 @@ const DataView = () => {
           status_filter: statusFilter || undefined,
           courier_filter: courierFilter || undefined,
           channel_filter: channelFilter || undefined,
-          search_term: searchTerm || undefined
+          search_term: searchTerm || undefined,
+          _t: cacheBuster // Cache-busting parameter
         });
       
       console.log('📥 API Response received:', response);
@@ -196,6 +201,8 @@ const DataView = () => {
           totalPages: total_pages,
           hasKPIs: !!kpi_metrics
         });
+        
+
         
         if (records && Array.isArray(records)) {
           setDataRecords(records);
@@ -443,6 +450,7 @@ const DataView = () => {
           'Order ID',
           'G Code',
           'EAN',
+          'Replace G-Code/EAN',
           'SKU',
           'Quantity',
           'Amount',
@@ -462,6 +470,7 @@ const DataView = () => {
             `"${record.order_id || ''}"`,
             `"${record.g_code || ''}"`,
             `"${record.ean || ''}"`,
+            `"${record.packed_g_code || ''}"`,
             `"${record.sku || ''}"`,
             `"${record.qty || ''}"`,
             `"${record.amount || ''}"`,
@@ -545,6 +554,25 @@ const DataView = () => {
 
     return () => clearTimeout(timer);
   }, [searchTerm, fetchData]);
+
+  // Listen for global data refresh events
+  useEffect(() => {
+    const handleRefreshData = (event) => {
+      console.log('🔄 DataView: Received refresh data event:', event.detail);
+      
+      // Refresh data when other components make changes
+      if (event.detail?.action) {
+        console.log(`🔄 DataView: Refreshing data due to ${event.detail.action}`);
+        fetchData(currentPage, false); // Force refresh without cache
+      }
+    };
+
+    window.addEventListener('refreshAllTrackingData', handleRefreshData);
+    
+    return () => {
+      window.removeEventListener('refreshAllTrackingData', handleRefreshData);
+    };
+  }, [currentPage, fetchData]);
 
   return (
     <div className="min-h-screen bg-gray-50">

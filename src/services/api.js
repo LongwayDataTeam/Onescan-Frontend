@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://onescan-backend-lw-v-2-0-1-477154991805.asia-south1.run.app',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
   timeout: 120000, // 120 seconds - increased for Redis operations
   headers: {
     'Content-Type': 'application/json',
@@ -119,6 +119,9 @@ export const scanAPI = {
   revokeStatus: (data) => api.post('/scan/revoke', data),
   getCurrentStatus: (trackingId) => api.get(`/scan/status/${trackingId}`),
   cancelShipment: (data) => api.post('/scan/cancel', data),
+  // Replacement functionality
+  getTrackingSKUs: (data) => api.post('/scan/replacement/get-skus', data),
+  updatePackedGCode: (data) => api.post('/scan/replacement/update-packed-gcode', data),
 };
 
 export const adminAPI = {

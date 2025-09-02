@@ -574,12 +574,16 @@ const DataUpload = () => {
           'G Code',
           'EAN',
           'Replace G-Code/EAN',
+          'Replaced SKU',
           'SKU',
           'Quantity',
           'Amount',
           'Courier',
           'Channel',
           'Status',
+          'Packed',
+          'Packed By',
+          'Packed At',
           'Created At',
           'Created By'
         ];
@@ -594,12 +598,16 @@ const DataUpload = () => {
             `"${record.g_code || ''}"`,
             `"${record.ean || ''}"`,
             `"${record.packed_g_code || ''}"`,
+            `"${record.replaced_sku || ''}"`,
             `"${record.sku || ''}"`,
             `"${record.qty || ''}"`,
             `"${record.amount || ''}"`,
             `"${record.courier || ''}"`,
             `"${record.channel_name || ''}"`,
             `"${record.status || ''}"`,
+            `"${record.packed || ''}"`,
+            `"${record.packed_by || ''}"`,
+            `"${record.packed_at || ''}"`,
             `"${record.created_at || ''}"`,
             `"${record.created_by || ''}"`
           ].join(','))

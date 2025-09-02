@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, CheckCircle, XCircle, Clock, Search, Package } from 'lucide-react';
+import { Truck, CheckCircle, XCircle, Clock, Search, Package, Zap, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
@@ -36,6 +36,29 @@ const Dispatch = () => {
   // Performance monitoring state
   const [lastScanTime, setLastScanTime] = useState(null);
   const [performanceMode, setPerformanceMode] = useState('ultra-fast');
+
+  // Performance Stats State
+  const [globalKPIs, setGlobalKPIs] = useState({
+    totalScans: 0,
+    successScans: 0,
+    errorScans: 0,
+    averageResponseTime: 0,
+    fastestScan: Infinity,
+    slowestScan: 0,
+    successRate: 100,
+    multiSkuOrders: 0
+  });
+
+  const [scanDetails, setScanDetails] = useState({
+    successScans: [],
+    errorScans: [],
+    multiSkuOrders: []
+  });
+
+  // Modal states for KPI details
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showMultiSkuModal, setShowMultiSkuModal] = useState(false);
 
   // Set document title
   useEffect(() => {
@@ -178,6 +201,47 @@ const Dispatch = () => {
     }
   };
 
+  // Update Performance KPIs
+  const updateGlobalKPIs = (isSuccess, responseTime, isMultiSku = false) => {
+    setGlobalKPIs(prev => {
+      const newKPIs = {
+        ...prev,
+        totalScans: prev.totalScans + 1,
+        successScans: isSuccess ? prev.successScans + 1 : prev.successScans,
+        errorScans: !isSuccess ? prev.errorScans + 1 : prev.errorScans,
+        multiSkuOrders: isMultiSku ? prev.multiSkuOrders + 1 : prev.multiSkuOrders,
+        fastestScan: Math.min(prev.fastestScan, responseTime),
+        slowestScan: Math.max(prev.slowestScan, responseTime)
+      };
+
+      // Calculate average response time
+      if (newKPIs.totalScans > 0) {
+        newKPIs.averageResponseTime = (prev.averageResponseTime * prev.totalScans + responseTime) / newKPIs.totalScans;
+      }
+
+      // Calculate success rate
+      if (newKPIs.totalScans > 0) {
+        newKPIs.successRate = (newKPIs.successScans / newKPIs.totalScans) * 100;
+      }
+
+      return newKPIs;
+    });
+  };
+
+  // Add scan details for modals
+  const addScanDetail = (type, scanData) => {
+    const detail = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date().toLocaleString(),
+      ...scanData
+    };
+
+    setScanDetails(prev => ({
+      ...prev,
+      [type]: [detail, ...prev[type].slice(0, 49)] // Keep last 50 records
+    }));
+  };
+
   // Check current status before dispatch
   const checkCurrentStatus = async (trackingId) => {
     try {
@@ -269,6 +333,8 @@ const Dispatch = () => {
     }
 
     setScanningLoading(true);
+    const startTime = performance.now();
+
     try {
       // First check current status
       const currentStatus = await checkCurrentStatus(trackingId);
@@ -287,9 +353,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Clear input field and focus back to input for next scan
         setTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           trackingIdInputRef.current?.focus();
         }, 100);
@@ -308,9 +372,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Clear input field and focus back to input for next scan
         setTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           trackingIdInputRef.current?.focus();
         }, 100);
@@ -329,9 +391,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setScanningLoading(false);
-        // Clear input field and focus back to input for next scan
         setTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           trackingIdInputRef.current?.focus();
         }, 100);
@@ -339,11 +399,11 @@ const Dispatch = () => {
       }
       
       // Call real dispatch scan API with performance monitoring
-      const startTime = performance.now();
       const response = await scanAPI.dispatchScan({
         tracking_id: trackingId.trim(),
         user_id: user?.user_id
       });
+      
       const endTime = performance.now();
       const scanTime = endTime - startTime;
       
@@ -357,15 +417,27 @@ const Dispatch = () => {
         setPerformanceMode('normal');
       }
 
-      if (response.data?.success) {
+      const isSuccess = response.data?.success;
+      const isMultiSku = false; // Dispatch doesn't have multi-SKU concept like packing
+
+      // Update Performance KPIs
+      updateGlobalKPIs(isSuccess, scanTime, isMultiSku);
+
+      if (isSuccess) {
         toast.success(`Dispatch scan successful for ${trackingId} (${scanTime.toFixed(0)}ms)`);
+        
+        // Add to success scan details
+        addScanDetail('successScans', {
+          trackingId: trackingId.trim(),
+          responseTime: scanTime,
+          status: response.data?.status || 'Dispatched'
+        });
         
         // Play success sound
         try {
           await playSuccessSound();
-          console.log('🔊 Dispatch: Success sound triggered successfully');
         } catch (error) {
-          console.error('🔊 Dispatch: Failed to trigger success sound:', error);
+          console.error('Sound playback error:', error);
         }
         
         // ✅ SUCCESS LOGGER: Add to table and console
@@ -381,20 +453,24 @@ const Dispatch = () => {
         });
         
         setTrackingId('');
-        // Focus back to input for next scan
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           trackingIdInputRef.current?.focus();
         }, 100);
       } else {
         toast.error(response.data?.message || 'Dispatch scan failed');
         
+        // Add to error scan details
+        addScanDetail('errorScans', {
+          trackingId: trackingId.trim(),
+          error: response.data?.message || 'Dispatch scan failed',
+          responseTime: scanTime
+        });
+        
         // Play error sound for scanning error
         try {
           await playErrorSound();
-          console.log('🔊 Dispatch: Error sound triggered successfully');
         } catch (error) {
-          console.error('🔊 Dispatch: Failed to trigger error sound:', error);
+          console.error('Sound playback error:', error);
         }
         
         // ❌ ERROR LOGGER: Add to table and console
@@ -408,15 +484,17 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         
-        // Clear input field and focus for next scan after error
         setTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           trackingIdInputRef.current?.focus();
         }, 100);
       }
     } catch (error) {
-      console.error('Dispatch scan error:', error);
+      const endTime = performance.now();
+      const scanTime = endTime - startTime;
+      
+      // Update Performance KPIs for network error
+      updateGlobalKPIs(false, scanTime, false);
       
       // Extract detailed error message from backend
       let errorMessage = 'Dispatch scan failed';
@@ -428,14 +506,20 @@ const Dispatch = () => {
         errorMessage = error.message;
       }
       
+      // Add to error scan details
+      addScanDetail('errorScans', {
+        trackingId: trackingId.trim(),
+        error: errorMessage,
+        responseTime: scanTime
+      });
+      
       toast.error(errorMessage);
       
       // Play error sound for network/API errors
       try {
         await playErrorSound();
-        console.log('🔊 Dispatch: Error sound triggered for network error');
       } catch (error) {
-        console.error('🔊 Dispatch: Failed to trigger error sound:', error);
+        console.error('Sound playback error:', error);
       }
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
@@ -449,15 +533,13 @@ const Dispatch = () => {
         user: user?.username || user?.user_id || 'Unknown'
       });
       
-              // Clear input field and focus back to input for next scan after error
-        setTrackingId('');
-        // Small delay to ensure DOM update before focus
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
-      } finally {
-        setScanningLoading(false);
-      }
+      setTrackingId('');
+      setTimeout(() => {
+        trackingIdInputRef.current?.focus();
+      }, 100);
+    } finally {
+      setScanningLoading(false);
+    }
   };
 
   // Handle Dispatch Pending
@@ -486,9 +568,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Clear input field and focus back to input for next scan
         setPendingTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           pendingTrackingIdInputRef.current?.focus();
         }, 100);
@@ -507,9 +587,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Clear input field and focus back to input for next scan
         setPendingTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           pendingTrackingIdInputRef.current?.focus();
         }, 100);
@@ -528,9 +606,7 @@ const Dispatch = () => {
           user: user?.username || user?.user_id || 'Unknown'
         });
         setPendingLoading(false);
-        // Clear input field and focus back to input for next scan
         setPendingTrackingId('');
-        // Small delay to ensure DOM update before focus
         setTimeout(() => {
           pendingTrackingIdInputRef.current?.focus();
         }, 100);
@@ -567,8 +643,6 @@ const Dispatch = () => {
       });
       
       setPendingTrackingId('');
-      // Focus back to input
-      // Small delay to ensure DOM update before focus
       setTimeout(() => {
         pendingTrackingIdInputRef.current?.focus();
       }, 100);
@@ -598,15 +672,13 @@ const Dispatch = () => {
         user: user?.username || user?.user_id || 'Unknown'
       });
       
-              // Clear input field and focus back to input for next scan after error
-        setPendingTrackingId('');
-        // Small delay to ensure DOM update before focus
-        setTimeout(() => {
-          pendingTrackingIdInputRef.current?.focus();
-        }, 100);
-      } finally {
-        setPendingLoading(false);
-      }
+      setPendingTrackingId('');
+      setTimeout(() => {
+        pendingTrackingIdInputRef.current?.focus();
+      }, 100);
+    } finally {
+      setPendingLoading(false);
+    }
   };
 
   // Handle Enter key press for tracking ID input
@@ -624,518 +696,755 @@ const Dispatch = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dispatch</h1>
-          <p className="text-gray-600">Manage dispatch operations and pending items</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('scanning')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'scanning'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Truck className="w-4 h-4 inline mr-2" />
-            Dispatch Scanning
-          </button>
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'pending'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Clock className="w-4 h-4 inline mr-2" />
-            Dispatch Pending
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'scanning' && (
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Truck className="w-8 h-8 text-purple-600" />
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Dispatch</h1>
+              <p className="text-gray-600 mt-1">Manage dispatch operations and pending items</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-gray-500">
+                Performance Mode: <span className={`font-medium ${performanceMode === 'ultra-fast' ? 'text-green-600' : performanceMode === 'fast' ? 'text-blue-600' : 'text-orange-600'}`}>
+                  {performanceMode.replace('-', ' ').toUpperCase()}
+                </span>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Dispatch Scanning</h2>
-              <p className="text-sm text-gray-600">
-                Scan tracking ID to process dispatch
-              </p>
-              <div className="mt-3">
-                <button
-                  onClick={handlePrewarmDispatch}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                  title="Pre-warm dispatch indexes for ultra-fast scanning"
-                >
-                  🚀 Pre-warm Dispatch Indexes
-                </button>
-              </div>
-              
-              {/* Performance Display */}
               {lastScanTime && (
-                <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Last Scan:</span>
-                    <span className={`font-medium ${
-                      performanceMode === 'ultra-fast' ? 'text-green-600' :
-                      performanceMode === 'fast' ? 'text-blue-600' :
-                      'text-orange-600'
-                    }`}>
-                      {lastScanTime.toFixed(0)}ms ({performanceMode})
-                    </span>
-                  </div>
+                <div className="text-sm text-gray-500">
+                  Last Scan: <span className="font-medium text-blue-600">{lastScanTime.toFixed(0)}ms</span>
                 </div>
               )}
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="trackingId" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tracking ID
-                </label>
-                <input
-                  ref={trackingIdInputRef}
-                  type="text"
-                  id="trackingId"
-                  value={trackingId}
-                  onChange={(e) => setTrackingId(e.target.value)}
-                  onKeyDown={handleTrackingIdInput}
-                  placeholder="Scan/Enter tracking ID and press Enter"
-                  className="scan-input w-full"
-                  autoFocus
-                  disabled={scanningLoading}
-                />
-              </div>
-              
-              {/* Status Display */}
-              {trackingId.trim() && (
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Current Status:</span>
-                    {statusLoading ? (
-                      <div className="flex items-center">
-                        <div className="spinner w-4 h-4 mr-2"></div>
-                        <span className="text-sm text-gray-500">Checking...</span>
-                      </div>
-                    ) : currentStatus ? (
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        currentStatus === 'dispatch_scanned' ? 'bg-red-100 text-red-800' :
-                        currentStatus === 'packing_scanned' ? 'bg-green-100 text-green-800' :
-                        currentStatus === 'label_scanned' ? 'bg-blue-100 text-blue-800' :
-                        currentStatus === 'unlabeled' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {currentStatus.replace('_', ' ').toUpperCase()}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-500">Not found</span>
-                    )}
-                  </div>
-                  {currentStatus && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      {currentStatus === 'dispatch_scanned' && '✅ Already dispatched - cannot dispatch again'}
-                      {currentStatus === 'packing_scanned' && '✅ Ready for dispatch'}
-                      {currentStatus === 'label_scanned' && '⚠️ Needs packing before dispatch'}
-                      {currentStatus === 'unlabeled' && '⚠️ Needs labeling before dispatch'}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <button
-                onClick={handleDispatchScan}
-                disabled={
-                  scanningLoading || 
-                  !trackingId.trim() || 
-                  currentStatus === 'dispatch_scanned' ||
-                  currentStatus === 'label_scanned' ||
-                  currentStatus === 'unlabeled'
-                }
-                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed h-12 text-base"
-              >
-                {scanningLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="spinner w-5 h-5 mr-2"></div>
-                    Processing...
-                  </div>
-                ) : (
-                  <>
-                    {currentStatus === 'dispatch_scanned' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Already Dispatched
-                      </>
-                    ) : currentStatus === 'label_scanned' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Needs Packing First
-                      </>
-                    ) : currentStatus === 'unlabeled' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Needs Labeling First
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        Process Dispatch
-                      </>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'pending' && (
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-8 h-8 text-red-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Dispatch Pending</h2>
-              <p className="text-sm text-gray-600">
-                Scan tracking ID to mark as pending dispatch
-              </p>
-              <div className="mt-3">
-                <button
-                  onClick={handlePrewarmDispatch}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                  title="Pre-warm dispatch indexes for ultra-fast scanning"
-                >
-                  🚀 Pre-warm Dispatch Indexes
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="pendingTrackingId" className="block text-sm font-medium text-gray-700 mb-2">
-                  Tracking ID
-                </label>
-                <input
-                  ref={pendingTrackingIdInputRef}
-                  type="text"
-                  id="pendingTrackingId"
-                  value={pendingTrackingId}
-                  onChange={(e) => setPendingTrackingId(e.target.value)}
-                  onKeyDown={handlePendingTrackingIdInput}
-                  placeholder="Scan/Enter tracking ID and press Enter"
-                  className="scan-input w-full"
-                  autoFocus
-                  disabled={pendingLoading}
-                />
-              </div>
-              
-              {/* Status Display */}
-              {pendingTrackingId.trim() && (
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Current Status:</span>
-                    {pendingStatusLoading ? (
-                      <div className="flex items-center">
-                        <div className="spinner w-4 h-4 mr-2"></div>
-                        <span className="text-sm text-gray-500">Checking...</span>
-                      </div>
-                    ) : pendingCurrentStatus ? (
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        pendingCurrentStatus === 'dispatch_scanned' ? 'bg-red-100 text-red-800' :
-                        pendingCurrentStatus === 'packing_scanned' ? 'bg-green-100 text-green-800' :
-                        pendingCurrentStatus === 'label_scanned' ? 'bg-blue-100 text-blue-800' :
-                        pendingCurrentStatus === 'unlabeled' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {pendingCurrentStatus.replace('_', ' ').toUpperCase()}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-500">Not found</span>
-                    )}
-                  </div>
-                  {pendingCurrentStatus && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      {pendingCurrentStatus === 'dispatch_scanned' && '✅ Already dispatched - cannot move to pending'}
-                      {pendingCurrentStatus === 'packing_scanned' && '✅ Ready for dispatch pending'}
-                      {pendingCurrentStatus === 'label_scanned' && '⚠️ Needs packing before dispatch pending'}
-                      {pendingCurrentStatus === 'unlabeled' && '⚠️ Needs labeling before dispatch pending'}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <button
-                onClick={handlePendingScan}
-                disabled={
-                  pendingLoading || 
-                  !pendingTrackingId.trim() || 
-                  pendingCurrentStatus === 'dispatch_scanned' ||
-                  pendingCurrentStatus === 'label_scanned' ||
-                  pendingCurrentStatus === 'unlabeled'
-                }
-                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed h-12 text-base"
-              >
-                {pendingLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="spinner w-5 h-5 mr-2"></div>
-                    Processing...
-                  </div>
-                ) : (
-                  <>
-                    {pendingCurrentStatus === 'dispatch_scanned' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Already Dispatched
-                      </>
-                    ) : pendingCurrentStatus === 'label_scanned' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Needs Packing First
-                      </>
-                    ) : pendingCurrentStatus === 'unlabeled' ? (
-                      <>
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Needs Labeling First
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-5 h-5 mr-2" />
-                        Mark as Pending
-                      </>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Courier Summary Section */}
-      <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Truck className="w-6 h-6 mr-2 text-green-500" />
-              Dispatch Workflow - Courier Summary
-            </h3>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">
-                Dispatch workflow statistics by courier
-              </span>
-              <button
-                onClick={() => calculateDispatchCourierStats()}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Refresh courier stats"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-6">
-          <div className="overflow-auto max-h-64 border border-gray-200 rounded-lg">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[80px]">
-                    Courier
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[50px]">
-                    Total
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
-                    Single SKU
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[90px]">
-                    Dispatch Pending
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
-                    Multi SKU
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[90px]">
-                    Dispatch Scanned
-                  </th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
-                    Cancelled
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {Object.entries(dispatchCourierStats).length > 0 ? (
-                  Object.entries(dispatchCourierStats).map(([courier, stats], index) => (
-                    <tr key={courier} className={index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}>
-                      <td className="px-2 py-2 text-xs font-medium text-gray-900 border-r border-gray-200">
-                        {courier}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-center text-blue-600 font-bold border-r border-gray-200">
-                        {stats.total}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-center text-green-600 font-bold border-r border-gray-200">
-                        {stats.singleSku}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-center text-yellow-600 font-bold border-r border-gray-200">
-                        {stats.dispatchPending}
-                      </td>
-                      <td className="px-2 py-2 text-xs text-center text-purple-600 font-bold border-r border-gray-200">
-                        {stats.multiSku}
-                      </td>
-                                              <td className="px-2 py-2 text-xs text-center text-orange-600 font-bold">
-                          {stats.dispatchScanned}
-                        </td>
-                        <td className="px-2 py-2 text-xs text-center text-red-600 font-bold">
-                          {stats.cancelled}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="px-2 py-4 text-xs text-center text-gray-500">
-                        No courier data available
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-            </table>
-          </div>
-          
-          {/* Summary Row */}
-          {Object.entries(dispatchCourierStats).length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-200 bg-gray-50 rounded-lg p-2">
-              <div className="grid grid-cols-7 gap-2 text-xs">
-                <div className="font-bold text-gray-800">Total:</div>
-                <div className="text-center font-bold text-blue-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.total, 0)}
-                </div>
-                <div className="font-bold text-green-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.singleSku, 0)}
-                </div>
-                <div className="text-center font-bold text-yellow-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.dispatchPending, 0)}
-                </div>
-                <div className="text-center font-bold text-purple-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.multiSku, 0)}
-                </div>
-                <div className="text-center font-bold text-orange-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.dispatchScanned, 0)}
-                </div>
-                <div className="text-center font-bold text-red-700">
-                  {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.cancelled, 0)}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
-      
-      {/* Full Width Scanning Logger Section */}
-      <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">Dispatch Activity Logger</h3>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowLogs(!showLogs)}
-                className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded border transition-colors"
-              >
-                {showLogs ? 'Hide Logs' : 'Show Logs'}
-              </button>
-              <button
-                onClick={() => setScanLogs([])}
-                className="text-sm bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded border transition-colors"
-              >
-                Clear Logs
-              </button>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-8">
+
+            {/* Tabs */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8 px-6">
+                  <button
+                    onClick={() => setActiveTab('scanning')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'scanning'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Truck className="w-4 h-4 inline mr-2" />
+                    Dispatch Scanning
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('pending')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'pending'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    Dispatch Pending
+                  </button>
+                </nav>
+              </div>
+
+              {/* Tab Content */}
+              <div className="p-6">
+                {activeTab === 'scanning' && (
+                  <div className="max-w-2xl mx-auto">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Truck className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Dispatch Scanning</h2>
+                      <p className="text-sm text-gray-600">
+                        Scan tracking ID to process dispatch
+                      </p>
+                      <div className="mt-3">
+                        <button
+                          onClick={handlePrewarmDispatch}
+                          className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          title="Pre-warm dispatch indexes for ultra-fast scanning"
+                        >
+                          🚀 Pre-warm Dispatch Indexes
+                        </button>
+                      </div>
+                      
+                      {/* Performance Display */}
+                      {lastScanTime && (
+                        <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Last Scan:</span>
+                            <span className={`font-medium ${
+                              performanceMode === 'ultra-fast' ? 'text-green-600' :
+                              performanceMode === 'fast' ? 'text-blue-600' :
+                              'text-orange-600'
+                            }`}>
+                              {lastScanTime.toFixed(0)}ms ({performanceMode})
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="trackingId" className="block text-sm font-medium text-gray-700 mb-2">
+                          Tracking ID
+                        </label>
+                        <input
+                          ref={trackingIdInputRef}
+                          type="text"
+                          id="trackingId"
+                          value={trackingId}
+                          onChange={(e) => setTrackingId(e.target.value)}
+                          onKeyDown={handleTrackingIdInput}
+                          placeholder="Scan/Enter tracking ID and press Enter"
+                          className="scan-input w-full"
+                          autoFocus
+                          disabled={scanningLoading}
+                        />
+                      </div>
+                      
+                      {/* Status Display */}
+                      {trackingId.trim() && (
+                        <div className="p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Current Status:</span>
+                            {statusLoading ? (
+                              <div className="flex items-center">
+                                <div className="spinner w-4 h-4 mr-2"></div>
+                                <span className="text-sm text-gray-500">Checking...</span>
+                              </div>
+                            ) : currentStatus ? (
+                              <span className={`text-sm px-2 py-1 rounded-full ${
+                                currentStatus === 'dispatch_scanned' ? 'bg-red-100 text-red-800' :
+                                currentStatus === 'packing_scanned' ? 'bg-green-100 text-green-800' :
+                                currentStatus === 'label_scanned' ? 'bg-blue-100 text-blue-800' :
+                                currentStatus === 'unlabeled' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {currentStatus.replace('_', ' ').toUpperCase()}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-500">Not found</span>
+                            )}
+                          </div>
+                          {currentStatus && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              {currentStatus === 'dispatch_scanned' && '✅ Already dispatched - cannot dispatch again'}
+                              {currentStatus === 'packing_scanned' && '✅ Ready for dispatch'}
+                              {currentStatus === 'label_scanned' && '⚠️ Needs packing before dispatch'}
+                              {currentStatus === 'unlabeled' && '⚠️ Needs labeling before dispatch'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handleDispatchScan}
+                        disabled={
+                          scanningLoading || 
+                          !trackingId.trim() || 
+                          currentStatus === 'dispatch_scanned' ||
+                          currentStatus === 'label_scanned' ||
+                          currentStatus === 'unlabeled'
+                        }
+                        className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed h-12 text-base"
+                      >
+                        {scanningLoading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="spinner w-5 h-5 mr-2"></div>
+                            Processing...
+                          </div>
+                        ) : (
+                          <>
+                            {currentStatus === 'dispatch_scanned' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Already Dispatched
+                              </>
+                            ) : currentStatus === 'label_scanned' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Needs Packing First
+                              </>
+                            ) : currentStatus === 'unlabeled' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Needs Labeling First
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                Process Dispatch
+                              </>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'pending' && (
+                  <div className="max-w-2xl mx-auto">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8 text-red-600" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Dispatch Pending</h2>
+                      <p className="text-sm text-gray-600">
+                        Scan tracking ID to mark as pending dispatch
+                      </p>
+                      <div className="mt-3">
+                        <button
+                          onClick={handlePrewarmDispatch}
+                          className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          title="Pre-warm dispatch indexes for ultra-fast scanning"
+                        >
+                          🚀 Pre-warm Dispatch Indexes
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="pendingTrackingId" className="block text-sm font-medium text-gray-700 mb-2">
+                          Tracking ID
+                        </label>
+                        <input
+                          ref={pendingTrackingIdInputRef}
+                          type="text"
+                          id="pendingTrackingId"
+                          value={pendingTrackingId}
+                          onChange={(e) => setPendingTrackingId(e.target.value)}
+                          onKeyDown={handlePendingTrackingIdInput}
+                          placeholder="Scan/Enter tracking ID and press Enter"
+                          className="scan-input w-full"
+                          autoFocus
+                          disabled={pendingLoading}
+                        />
+                      </div>
+                      
+                      {/* Status Display */}
+                      {pendingTrackingId.trim() && (
+                        <div className="p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Current Status:</span>
+                            {pendingStatusLoading ? (
+                              <div className="flex items-center">
+                                <div className="spinner w-4 h-4 mr-2"></div>
+                                <span className="text-sm text-gray-500">Checking...</span>
+                              </div>
+                            ) : pendingCurrentStatus ? (
+                              <span className={`text-sm px-2 py-1 rounded-full ${
+                                pendingCurrentStatus === 'dispatch_scanned' ? 'bg-red-100 text-red-800' :
+                                pendingCurrentStatus === 'packing_scanned' ? 'bg-green-100 text-green-800' :
+                                pendingCurrentStatus === 'label_scanned' ? 'bg-blue-100 text-blue-800' :
+                                pendingCurrentStatus === 'unlabeled' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {pendingCurrentStatus.replace('_', ' ').toUpperCase()}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-500">Not found</span>
+                            )}
+                          </div>
+                          {pendingCurrentStatus && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              {pendingCurrentStatus === 'dispatch_scanned' && '✅ Already dispatched - cannot move to pending'}
+                              {pendingCurrentStatus === 'packing_scanned' && '✅ Ready for dispatch pending'}
+                              {pendingCurrentStatus === 'label_scanned' && '⚠️ Needs packing before dispatch pending'}
+                              {pendingCurrentStatus === 'unlabeled' && '⚠️ Needs labeling before dispatch pending'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handlePendingScan}
+                        disabled={
+                          pendingLoading || 
+                          !pendingTrackingId.trim() || 
+                          pendingCurrentStatus === 'dispatch_scanned' ||
+                          pendingCurrentStatus === 'label_scanned' ||
+                          pendingCurrentStatus === 'unlabeled'
+                        }
+                        className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed h-12 text-base"
+                      >
+                        {pendingLoading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="spinner w-5 h-5 mr-2"></div>
+                            Processing...
+                          </div>
+                        ) : (
+                          <>
+                            {pendingCurrentStatus === 'dispatch_scanned' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Already Dispatched
+                              </>
+                            ) : pendingCurrentStatus === 'label_scanned' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Needs Packing First
+                              </>
+                            ) : pendingCurrentStatus === 'unlabeled' ? (
+                              <>
+                                <XCircle className="w-5 h-5 mr-2" />
+                                Needs Labeling First
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-5 h-5 mr-2" />
+                                Mark as Pending
+                              </>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Courier Summary Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Truck className="w-6 h-6 mr-2 text-green-500" />
+                    Dispatch Workflow - Courier Summary
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">
+                      Dispatch workflow statistics by courier
+                    </span>
+                    <button
+                      onClick={() => calculateDispatchCourierStats()}
+                      className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Refresh courier stats"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="overflow-auto max-h-64 border border-gray-200 rounded-lg">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[80px]">
+                          Courier
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[50px]">
+                          Total
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
+                          Single SKU
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[90px]">
+                          Dispatch Pending
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
+                          Multi SKU
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[90px]">
+                          Dispatch Scanned
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 min-w-[70px]">
+                          Cancelled
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {Object.entries(dispatchCourierStats).length > 0 ? (
+                        Object.entries(dispatchCourierStats).map(([courier, stats], index) => (
+                          <tr key={courier} className={index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}>
+                            <td className="px-2 py-2 text-xs font-medium text-gray-900 border-r border-gray-200">
+                              {courier}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-blue-600 font-bold border-r border-gray-200">
+                              {stats.total}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-green-600 font-bold border-r border-gray-200">
+                              {stats.singleSku}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-yellow-600 font-bold border-r border-gray-200">
+                              {stats.dispatchPending}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-purple-600 font-bold border-r border-gray-200">
+                              {stats.multiSku}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-orange-600 font-bold border-r border-gray-200">
+                              {stats.dispatchScanned}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-center text-red-600 font-bold">
+                              {stats.cancelled}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="px-2 py-4 text-xs text-center text-gray-500">
+                            No courier data available
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Summary Row */}
+                {Object.entries(dispatchCourierStats).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 bg-gray-50 rounded-lg p-2">
+                    <div className="grid grid-cols-7 gap-2 text-xs">
+                      <div className="font-bold text-gray-800">Total:</div>
+                      <div className="text-center font-bold text-blue-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.total, 0)}
+                      </div>
+                      <div className="text-center font-bold text-green-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.singleSku, 0)}
+                      </div>
+                      <div className="text-center font-bold text-yellow-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.dispatchPending, 0)}
+                      </div>
+                      <div className="text-center font-bold text-purple-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.multiSku, 0)}
+                      </div>
+                      <div className="text-center font-bold text-orange-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.dispatchScanned, 0)}
+                      </div>
+                      <div className="text-center font-bold text-red-700">
+                        {Object.values(dispatchCourierStats).reduce((sum, stats) => sum + stats.cancelled, 0)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Dispatch Activity Logger Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-gray-900">Dispatch Activity Logger</h3>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setShowLogs(!showLogs)}
+                      className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded border transition-colors"
+                    >
+                      {showLogs ? 'Hide Logs' : 'Show Logs'}
+                    </button>
+                    <button
+                      onClick={() => setScanLogs([])}
+                      className="text-sm bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded border transition-colors"
+                    >
+                      Clear Logs
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {showLogs && (
+                <div className="p-6">
+                  {scanLogs.length === 0 ? (
+                    <div className="text-center text-gray-500 py-12">
+                      <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-lg font-medium">No dispatch activity yet</p>
+                      <p className="text-sm text-gray-400">Start scanning to see activity logs here</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Time</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">User</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Action</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Tracking ID</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">G-Code/EAN</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Message</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {scanLogs.map((log) => (
+                            <tr key={log.id} className={`hover:bg-gray-50 ${
+                              log.type === 'success' ? 'bg-green-50' : 
+                              log.type === 'error' ? 'bg-red-50' : 'bg-white'
+                            }`}>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {new Date(log.timestamp).toLocaleTimeString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 font-medium">
+                                {log.user}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
+                                {log.action}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 font-mono">
+                                {log.tracking_id}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 font-mono">
+                                {log.g_code_ean}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                  log.type === 'success' ? 'bg-green-100 text-green-800' :
+                                  log.type === 'error' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {log.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate" title={log.message}>
+                                {log.message}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  
+                  {scanLogs.length > 0 && (
+                    <div className="mt-4 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                      Showing {scanLogs.length} recent scans • Auto-clear after 100 logs
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Performance Stats Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Performance Stats */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Zap className="w-5 h-5 mr-2 text-yellow-500" />
+                Performance Stats
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Clickable Success Count */}
+                <button
+                  onClick={() => setShowSuccessModal(true)}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200 cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-gray-700 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    Success Scans
+                  </span>
+                  <div className="flex items-center">
+                    <span className="text-lg font-bold text-green-600 mr-2">{globalKPIs.successScans}</span>
+                    <Eye className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+                
+                {/* Clickable Error Count */}
+                <button
+                  onClick={() => setShowErrorModal(true)}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-200 hover:from-red-100 hover:to-pink-100 transition-all duration-200 cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-gray-700 flex items-center">
+                    <XCircle className="w-4 h-4 mr-2 text-red-600" />
+                    Error Scans
+                  </span>
+                  <div className="flex items-center">
+                    <span className="text-lg font-bold text-red-600 mr-2">{globalKPIs.errorScans}</span>
+                    <Eye className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+                
+                {/* Clickable Multi-SKU Count */}
+                <button
+                  onClick={() => setShowMultiSkuModal(true)}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 hover:from-purple-100 hover:to-indigo-100 transition-all duration-200 cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-gray-700 flex items-center">
+                    <Package className="w-4 h-4 mr-2 text-purple-600" />
+                    Multi-SKU Orders
+                  </span>
+                  <div className="flex items-center">
+                    <span className="text-lg font-bold text-purple-600 mr-2">{globalKPIs.multiSkuOrders}</span>
+                    <Eye className="w-4 h-4 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+                
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                  <span className="text-sm font-medium text-gray-700">Total Scans</span>
+                  <span className="text-lg font-bold text-blue-600">{globalKPIs.totalScans}</span>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                  <span className="text-sm font-medium text-gray-700">Avg Response</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {globalKPIs.averageResponseTime && globalKPIs.averageResponseTime > 0 ? 
+                       `${globalKPIs.averageResponseTime.toFixed(0)}ms` : 'N/A'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                  <span className="text-sm font-medium text-gray-700">Fastest Scan</span>
+                  <span className="text-lg font-bold text-yellow-600">
+                    {globalKPIs.fastestScan && globalKPIs.fastestScan < Infinity ? 
+                       `${globalKPIs.fastestScan.toFixed(0)}ms` : 'N/A'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                  <span className="text-sm font-medium text-gray-700">Success Rate</span>
+                  <span className="text-lg font-bold text-purple-600">
+                    {globalKPIs.successRate ? globalKPIs.successRate.toFixed(1) : '100.0'}%
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
-        {showLogs && (
-          <div className="p-6">
-            {scanLogs.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
-                <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg font-medium">No dispatch activity yet</p>
-                <p className="text-sm text-gray-400">Start scanning to see activity logs here</p>
-              </div>
-            ) : (
+      </div>
+
+      {/* KPI Details Modals */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Successful Scans ({scanDetails.successScans.length})
+              </h3>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">Time</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">User</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">Action</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">Tracking ID</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">G-Code/EAN</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-700">Message</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {scanLogs.map((log) => (
-                      <tr key={log.id} className={`hover:bg-gray-50 ${
-                        log.type === 'success' ? 'bg-green-50' : 
-                        log.type === 'error' ? 'bg-red-50' : 'bg-white'
-                      }`}>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 font-medium">
-                          {log.user}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          {log.action}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 font-mono">
-                          {log.tracking_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 font-mono">
-                          {log.g_code_ean}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                            log.type === 'success' ? 'bg-green-100 text-green-800' :
-                            log.type === 'error' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {log.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate" title={log.message}>
-                          {log.message}
-                        </td>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.successScans.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime.toFixed(0)}ms</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
-            
-            {scanLogs.length > 0 && (
-              <div className="mt-4 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-                Showing {scanLogs.length} recent scans • Auto-clear after 100 logs
-              </div>
-            )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Error Scans ({scanDetails.errorScans.length})
+              </h3>
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.errorScans.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm text-red-600">{scan.error}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime.toFixed(0)}ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMultiSkuModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Multi-SKU Orders ({scanDetails.multiSkuOrders.length})
+              </h3>
+              <button
+                onClick={() => setShowMultiSkuModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="overflow-x-auto"> 
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.multiSkuOrders.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.totalOrders}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime.toFixed(0)}ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

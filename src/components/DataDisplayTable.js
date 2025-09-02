@@ -21,7 +21,7 @@ const DataDisplayTable = ({
   onPageSizeChange
 }) => {
   const [visibleColumns, setVisibleColumns] = useState([
-    'tracking_id', 'tracking_no', 'order_id', 'g_code', 'ean', 'packed_g_code', 'sku', 'status', 'courier', 'channel_name', 'created_at'
+    'tracking_id', 'tracking_no', 'order_id', 'g_code', 'ean', 'packed_g_code', 'replaced_sku', 'sku', 'status', 'courier', 'channel_name', 'created_at'
   ]);
   
   const [sortConfig, setSortConfig] = useState({
@@ -37,6 +37,7 @@ const DataDisplayTable = ({
     { key: 'g_code', label: 'G Code', width: 100 },
     { key: 'ean', label: 'EAN', width: 120 },
     { key: 'packed_g_code', label: 'Replace G-Code/EAN', width: 150 },
+    { key: 'replaced_sku', label: 'Replaced SKU', width: 150 },
     { key: 'sku', label: 'SKU', width: 120 },
     { key: 'qty', label: 'Qty', width: 80 },
     { key: 'amount', label: 'Amount', width: 100 },
@@ -292,6 +293,17 @@ const DataDisplayTable = ({
                       <span className="text-gray-700">{record.packed_g_code}</span>
                     ) : (
                       <span className="text-gray-700">{record.g_code || '-'}</span>
+                    )}
+                  </td>
+                )}
+                {visibleColumns.includes('replaced_sku') && (
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600">
+                    {record.replaced_sku ? (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                        {record.replaced_sku}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
                     )}
                   </td>
                 )}

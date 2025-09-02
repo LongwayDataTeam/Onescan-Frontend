@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, CheckCircle, XCircle, Clock, Search } from 'lucide-react';
+import { Package, CheckCircle, XCircle, Clock, Search, Zap, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI } from '../services/api';
@@ -39,6 +39,29 @@ const Packing = () => {
   const [replacementLoading, setReplacementLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   
+  // Performance Stats State
+  const [globalKPIs, setGlobalKPIs] = useState({
+    totalScans: 0,
+    successScans: 0,
+    errorScans: 0,
+    averageResponseTime: 0,
+    fastestScan: Infinity,
+    slowestScan: 0,
+    successRate: 100,
+    multiSkuOrders: 0
+  });
+
+  const [scanDetails, setScanDetails] = useState({
+    successScans: [],
+    errorScans: [],
+    multiSkuOrders: []
+  });
+
+  // Modal states for KPI details
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showMultiSkuModal, setShowMultiSkuModal] = useState(false);
+  
   // Refs for input focus
   const trackingIdInputRef = useRef(null);
   const gCodeInputRef = useRef(null);
@@ -53,7 +76,7 @@ const Packing = () => {
   // Listen for clear data events from other components
   useEffect(() => {
     const handleClearData = (event) => {
-      console.log('🗑️ Packing: Received clear data event:', event.detail);
+
       
       // Clear all packing data
       setTrackingId('');
@@ -67,7 +90,7 @@ const Packing = () => {
       // Clear local storage
       localStorage.removeItem('packingScanningData');
       
-      console.log('🗑️ Packing: All packing data cleared');
+
       toast.info('Packing data cleared due to main data clear operation');
     };
 
@@ -111,23 +134,22 @@ const Packing = () => {
   const calculatePackingCourierStats = async () => {
     try {
       setPackingCourierStatsLoading(true);
-      console.log('🔄 Fetching ALL packing courier stats from DataUpload API...');
+
       
       // Import dataAPI dynamically to avoid circular imports
       const { dataAPI } = await import('../services/api');
       
       // Fetch ALL data from DataUpload API using the new function
       const response = await dataAPI.getAllDataForStats();
-      console.log('🔍 Packing courier stats API response received');
+
       
       // Extract the data array
       let allData = [];
       if (response.data?.data?.records && Array.isArray(response.data.data.records)) {
         allData = response.data.data.records;
-        console.log('✅ Using response.data.data.records (array)');
-        console.log(`📊 Total records for packing courier stats: ${allData.length}`);
+
       } else {
-        console.error('❌ No valid array found in response');
+
         return;
       }
       
@@ -190,16 +212,57 @@ const Packing = () => {
         }
       });
       
-      console.log('📊 Calculated packing courier stats:', stats);
+
       setPackingCourierStats(stats);
       toast.success(`✅ Packing courier stats updated with ${allData.length} total records!`);
       
     } catch (error) {
-      console.error('❌ Error fetching packing courier stats:', error);
+
       toast.error('Failed to fetch packing courier statistics');
     } finally {
       setPackingCourierStatsLoading(false);
     }
+  };
+
+  // Update Performance KPIs
+  const updateGlobalKPIs = (isSuccess, responseTime, isMultiSku = false) => {
+    setGlobalKPIs(prev => {
+      const newKPIs = {
+        ...prev,
+        totalScans: prev.totalScans + 1,
+        successScans: isSuccess ? prev.successScans + 1 : prev.successScans,
+        errorScans: !isSuccess ? prev.errorScans + 1 : prev.errorScans,
+        multiSkuOrders: isMultiSku ? prev.multiSkuOrders + 1 : prev.multiSkuOrders,
+        fastestScan: Math.min(prev.fastestScan, responseTime),
+        slowestScan: Math.max(prev.slowestScan, responseTime)
+      };
+
+      // Calculate average response time
+      if (newKPIs.totalScans > 0) {
+        newKPIs.averageResponseTime = (prev.averageResponseTime * prev.totalScans + responseTime) / newKPIs.totalScans;
+      }
+
+      // Calculate success rate
+      if (newKPIs.totalScans > 0) {
+        newKPIs.successRate = (newKPIs.successScans / newKPIs.totalScans) * 100;
+      }
+
+      return newKPIs;
+    });
+  };
+
+  // Add scan details for modals
+  const addScanDetail = (type, scanData) => {
+    const detail = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date().toLocaleString(),
+      ...scanData
+    };
+
+    setScanDetails(prev => ({
+      ...prev,
+      [type]: [detail, ...prev[type].slice(0, 49)] // Keep last 50 records
+    }));
   };
 
   // Handle Tracking ID Input (Step 1)
@@ -242,7 +305,7 @@ const Packing = () => {
         setPackingProgress(null);
       }
     } catch (error) {
-      console.error('Failed to get packing progress:', error);
+
       setPackingProgress(null);
     }
   };
@@ -293,12 +356,7 @@ const Packing = () => {
            user_id: user?.user_id
          });
 
-        // Debug: Log the actual response structure
-        console.log('🔍 Packing Scan Response:', scanResponse);
-        console.log('🔍 Response data:', scanResponse.data);
-        console.log('🔍 Success field:', scanResponse.data?.success);
-        console.log('🔍 Status field:', scanResponse.data?.status);
-        console.log('🔍 Message field:', scanResponse.data?.message);
+
         
         // Check the actual response structure from backend (handle both direct and wrapped responses)
         const responseData = scanResponse.data || scanResponse;
@@ -306,17 +364,17 @@ const Packing = () => {
         const message = responseData?.message;
         const status = responseData?.status;
         
-        console.log('🔍 Processed Response:', { isSuccess, message, status });
+
         
         if (isSuccess) {
            toast.success(message);
            // Play success sound
-           console.log('🔊 Packing: Attempting to play success sound');
+
            try {
              await playSuccessSound();
-             console.log('🔊 Packing: Success sound triggered successfully');
+
            } catch (error) {
-             console.error('🔊 Packing: Failed to trigger success sound:', error);
+
            }
           
           // Get updated packing progress after scan
@@ -339,7 +397,7 @@ const Packing = () => {
               });
             }
           } catch (progressError) {
-            console.error('Failed to get packing progress:', progressError);
+
           }
            
            // Update progress based on single vs multi-SKU
@@ -440,7 +498,7 @@ const Packing = () => {
        }
     } catch (error) {
       toast.error('Packing scan failed');
-      console.error('Packing scan error:', error);
+
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -504,7 +562,7 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Failed to validate tracking ID');
-      console.error('Tracking ID validation error:', error);
+
       setTrackingIdValidated(false);
       setTrackingRecord(null);
     } finally {
@@ -526,7 +584,7 @@ const Packing = () => {
         tracking_id: packingProgress.trackingId,
         user_id: user?.user_id
       };
-      console.log('🚀 DISPATCH PENDING API REQUEST DATA:', requestData);
+
       
       const response = await scanAPI.dispatchPending(requestData);
 
@@ -589,7 +647,7 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Failed to move to dispatch pending');
-      console.error('Dispatch pending error:', error);
+
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -621,6 +679,8 @@ const Packing = () => {
     }
 
     setScanningLoading(true);
+    const startTime = Date.now();
+    
     try {
       const response = await scanAPI.packingScan({
         tracking_id: trackingId.trim(),
@@ -628,33 +688,43 @@ const Packing = () => {
         user_id: user?.user_id
       });
 
+      const responseTime = Date.now() - startTime;
+      const isSuccess = response.data?.success;
+      const isMultiSku = packingProgress?.totalOrders > 1;
+
+      // Update Performance KPIs
+      updateGlobalKPIs(isSuccess, responseTime, isMultiSku);
+
       // Check the actual response structure from backend
-      if (response.data?.success) {
+      if (isSuccess) {
         toast.success(`Packing scan successful for ${trackingId}`);
+        
+        // Add to success scan details
+        addScanDetail('successScans', {
+          trackingId: trackingId.trim(),
+          gCode: gCode.trim(),
+          responseTime: responseTime,
+          isMultiSku: isMultiSku,
+          totalOrders: packingProgress?.totalOrders || 1
+        });
+
+        // Add to multi-SKU details if applicable
+        if (isMultiSku) {
+          addScanDetail('multiSkuOrders', {
+            trackingId: trackingId.trim(),
+            gCode: gCode.trim(),
+            totalOrders: packingProgress?.totalOrders,
+            responseTime: responseTime
+          });
+        }
         
         // Play success sound
         try {
           await playSuccessSound();
-          console.log('🔊 Packing: Success sound triggered successfully');
+
         } catch (error) {
-          console.error('🔊 Packing: Failed to trigger success sound:', error);
+
         }
-        
-        // ✅ SUCCESS LOGGER: Log all successful packing scans with order details
-        console.log('🎉 PACKING SCAN SUCCESS LOG (Legacy):', {
-          timestamp: new Date().toISOString(),
-          user: user?.username || user?.user_id || 'Unknown',
-          tracking_id: trackingId.trim(),
-          g_code_ean: gCode.trim(),
-          scan_status: 'Success',
-          success_message: `Packing scan successful for ${trackingId}`,
-          order_details: {
-            tracking_id: trackingId.trim(),
-            g_code: gCode.trim(),
-            user_id: user?.user_id,
-            scan_timestamp: new Date().toISOString()
-          }
-        });
         
         // Reset form completely for next tracking ID
         setTrackingId('');
@@ -666,30 +736,21 @@ const Packing = () => {
       } else {
         toast.error(response.data?.message || 'Packing scan failed');
         
+        // Add to error scan details
+        addScanDetail('errorScans', {
+          trackingId: trackingId.trim(),
+          gCode: gCode.trim(),
+          error: response.data?.message || 'Packing scan failed',
+          responseTime: responseTime
+        });
+        
         // Play error sound
         try {
           await playErrorSound();
-          console.log('🔊 Packing: Error sound triggered successfully');
+
         } catch (error) {
-          console.error('🔊 Packing: Failed to trigger error sound:', error);
+
         }
-        
-        // ❌ ERROR LOGGER: Log all failed packing scans with order details
-        console.log('❌ PACKING SCAN ERROR LOG (Legacy):', {
-          timestamp: new Date().toISOString(),
-          user: user?.username || user?.user_id || 'Unknown',
-          tracking_id: trackingId.trim(),
-          g_code_ean: gCode.trim(),
-          error_message: response.data?.message || 'Packing scan failed',
-          backend_response: response.data,
-          order_details: {
-            tracking_id: trackingId.trim(),
-            g_code: gCode.trim(),
-            user_id: user?.user_id,
-            scan_timestamp: new Date().toISOString(),
-            failure_reason: 'Backend returned success: false'
-          }
-        });
         
         // Reset form completely for next tracking ID
         setTrackingId('');
@@ -700,35 +761,28 @@ const Packing = () => {
         setShouldFocusTrackingId(true);
       }
     } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      // Update Performance KPIs for network error
+      updateGlobalKPIs(false, responseTime, false);
+      
+      // Add to error scan details
+      addScanDetail('errorScans', {
+        trackingId: trackingId.trim(),
+        gCode: gCode.trim(),
+        error: error.message || 'Network/API call failed',
+        responseTime: responseTime
+      });
+      
       toast.error('Packing scan failed');
       
       // Play error sound for network/API errors
       try {
         await playErrorSound();
-        console.log('🔊 Packing: Error sound triggered for network error');
+
       } catch (error) {
-        console.error('🔊 Packing: Failed to trigger error sound:', error);
+
       }
-      
-      console.error('Packing scan error:', error);
-      
-      // ❌ NETWORK/API ERROR LOGGER: Log all network/API failures with order details
-      console.log('🚨 PACKING SCAN NETWORK ERROR LOG (Legacy):', {
-        timestamp: new Date().toISOString(),
-        user: user?.username || user?.user_id || 'Unknown',
-        tracking_id: trackingId.trim(),
-        g_code_ean: gCode.trim(),
-        error_type: 'Network/API Error',
-        error_message: error.message || 'Unknown error',
-        error_stack: error.stack,
-        order_details: {
-          tracking_id: trackingId.trim(),
-          g_code: gCode.trim(),
-          user_id: user?.user_id,
-          scan_timestamp: new Date().toISOString(),
-          failure_reason: 'Network/API call failed'
-        }
-      });
       
       // Reset form completely for next tracking ID
       setTrackingId('');
@@ -814,7 +868,7 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Packing pending failed');
-      console.error('Packing pending error:', error);
+
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -837,68 +891,7 @@ const Packing = () => {
   // Replacement Functions (first duplicate removed)
   
 
-  // Debug function to check the current state of a tracking ID and its orders
-  const debugTrackingId = async (trackingIdValue) => {
-    if (!trackingIdValue.trim()) {
-      toast.error('Please enter a Tracking ID to debug');
-      return;
-    }
 
-    setScanningLoading(true);
-    try {
-      const response = await scanAPI.debugTracking({
-        tracking_id: trackingIdValue.trim(),
-        user_id: user?.user_id
-      });
-
-      if (response.data?.ok) {
-        toast.success(`Debug data for ${trackingIdValue}:`);
-        console.log('Debug Data:', response.data.data);
-        
-        // 🔍 DEBUG LOGGER: Add to table and console
-        addScanLog({
-          type: 'success',
-          action: 'Debug Tracking',
-          tracking_id: trackingIdValue.trim(),
-          g_code_ean: 'N/A',
-          status: 'Debugged',
-          message: `Debug data for ${trackingIdValue}`,
-          user: user?.username || user?.user_id || 'Unknown'
-        });
-        
-        toast.info(JSON.stringify(response.data.data, null, 2));
-      } else {
-        toast.error(response.data?.message || 'Failed to debug tracking ID');
-        
-        // ❌ ERROR LOGGER: Add to table and console
-        addScanLog({
-          type: 'error',
-          action: 'Debug Tracking',
-          tracking_id: trackingIdValue.trim(),
-          g_code_ean: 'N/A',
-          status: 'Failed',
-          message: response.data?.message || 'Failed to debug tracking ID',
-          user: user?.username || user?.user_id || 'Unknown'
-        });
-      }
-    } catch (error) {
-      toast.error('Debug failed');
-      console.error('Debug error:', error);
-      
-      // ❌ NETWORK/API ERROR LOGGER: Add to table and console
-      addScanLog({
-        type: 'error',
-        action: 'Debug Tracking',
-        tracking_id: trackingIdValue.trim(),
-        g_code_ean: 'N/A',
-        status: 'Network Error',
-        message: error.message || 'Network/API call failed',
-        user: user?.username || user?.user_id || 'Unknown'
-      });
-    } finally {
-      setScanningLoading(false);
-    }
-  };
 
   // Replacement Functions
   const handleGetSKUs = async () => {
@@ -909,7 +902,7 @@ const Packing = () => {
 
     setReplacementLoading(true);
     try {
-      console.log('🔍 REPLACEMENT: Getting SKUs for tracking ID:', replacementTrackingId);
+
       
       const response = await scanAPI.getTrackingSKUs({
         tracking_id: replacementTrackingId.trim(),
@@ -950,7 +943,7 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Failed to get SKUs');
-      console.error('Get SKUs error:', error);
+
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -975,11 +968,7 @@ const Packing = () => {
 
     setUpdateLoading(true);
     try {
-      console.log('🔄 REPLACEMENT: Updating packed G-Code:', {
-        tracking_id: replacementTrackingId,
-        sku: selectedSKU,
-        new_packed_g_code: newPackedGCode
-      });
+
       
       const response = await scanAPI.updatePackedGCode({
         tracking_id: replacementTrackingId.trim(),
@@ -1035,7 +1024,7 @@ const Packing = () => {
       }
     } catch (error) {
       toast.error('Failed to update packed G-Code');
-      console.error('Update packed G-Code error:', error);
+
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -1053,7 +1042,9 @@ const Packing = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-6">
+      {/* Main Content */}
+      <div className="flex-1 space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1102,6 +1093,7 @@ const Packing = () => {
       </div>
 
       {/* Tab Content */}
+      <div className="space-y-6">
       {activeTab === 'scanning' && (
         <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
           <div className="max-w-md mx-auto">
@@ -1183,12 +1175,7 @@ const Packing = () => {
                                       <Search className="w-3 h-3 inline mr-1" />
                                       Check Status
                                     </button>
-                                    <button
-                                      onClick={() => debugTrackingId(trackingId)}
-                                      className="flex-1 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-700 py-2 px-3 rounded border border-yellow-300 transition-colors"
-                                    >
-                                      🔍 Debug
-                                    </button>
+
                                   </div>
                                   
                                   {/* Clear Tracking ID Button */}
@@ -1851,9 +1838,230 @@ const Packing = () => {
             )}
           </div>
         )}
-
-
       </div>
+      </div>
+
+      {/* Performance Stats Sidebar */}
+      <div className="w-80 space-y-6">
+        {/* Performance Stats */}
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Zap className="w-5 h-5 mr-2 text-yellow-500" />
+            Performance Stats
+          </h3>
+          
+          <div className="space-y-4">
+            {/* Clickable Success Count */}
+            <button
+              onClick={() => setShowSuccessModal(true)}
+              className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200 cursor-pointer group"
+            >
+              <span className="text-sm font-medium text-gray-700 flex items-center">
+                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                Success Scans
+              </span>
+              <div className="flex items-center">
+                <span className="text-lg font-bold text-green-600 mr-2">{globalKPIs.successScans}</span>
+                <Eye className="w-4 h-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+            
+            {/* Clickable Error Count */}
+            <button
+              onClick={() => setShowErrorModal(true)}
+              className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-200 hover:from-red-100 hover:to-pink-100 transition-all duration-200 cursor-pointer group"
+            >
+              <span className="text-sm font-medium text-gray-700 flex items-center">
+                <XCircle className="w-4 h-4 mr-2 text-red-600" />
+                Error Scans
+              </span>
+              <div className="flex items-center">
+                <span className="text-lg font-bold text-red-600 mr-2">{globalKPIs.errorScans}</span>
+                <Eye className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+            </button>
+            
+            {/* Clickable Multi-SKU Count */}
+                  <button
+              onClick={() => setShowMultiSkuModal(true)}
+              className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 hover:from-purple-100 hover:to-indigo-100 transition-all duration-200 cursor-pointer group"
+            >
+              <span className="text-sm font-medium text-gray-700 flex items-center">
+                <Package className="w-4 h-4 mr-2 text-purple-600" />
+                Multi-SKU Orders
+              </span>
+              <div className="flex items-center">
+                <span className="text-lg font-bold text-purple-600 mr-2">{globalKPIs.multiSkuOrders}</span>
+                <Eye className="w-4 h-4 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+                  </button>
+            
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+               <span className="text-sm font-medium text-gray-700">Total Scans</span>
+              <span className="text-lg font-bold text-blue-600">{globalKPIs.totalScans}</span>
+                </div>
+             
+             <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+               <span className="text-sm font-medium text-gray-700">Avg Response</span>
+               <span className="text-lg font-bold text-blue-600">
+                {globalKPIs.averageResponseTime && globalKPIs.averageResponseTime > 0 ? 
+                   `${globalKPIs.averageResponseTime.toFixed(0)}ms` : 'N/A'}
+               </span>
+            </div>
+
+             <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+               <span className="text-sm font-medium text-gray-700">Fastest Scan</span>
+               <span className="text-lg font-bold text-yellow-600">
+                {globalKPIs.fastestScan && globalKPIs.fastestScan < Infinity ? 
+                   `${globalKPIs.fastestScan.toFixed(0)}ms` : 'N/A'}
+               </span>
+                  </div>
+
+             <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+               <span className="text-sm font-medium text-gray-700">Success Rate</span>
+               <span className="text-lg font-bold text-purple-600">
+                {globalKPIs.successRate ? globalKPIs.successRate.toFixed(1) : '100.0'}%
+               </span>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Details Modals */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Successful Scans ({scanDetails.successScans.length})
+              </h3>
+                  <button
+                onClick={() => setShowSuccessModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+                <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">G-Code</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Multi-SKU</th>
+                      </tr>
+                    </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.successScans.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.gCode}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime}ms</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">
+                          {scan.isMultiSku ? 'Yes' : 'No'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+              </div>
+            </div>
+                </div>
+              </div>
+            )}
+
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Error Scans ({scanDetails.errorScans.length})
+              </h3>
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+                <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">G-Code</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                      </tr>
+                    </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.errorScans.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.gCode}</td>
+                        <td className="px-3 py-2 text-sm text-red-600">{scan.error}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime}ms</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMultiSkuModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Multi-SKU Orders ({scanDetails.multiSkuOrders.length})
+              </h3>
+              <button
+                onClick={() => setShowMultiSkuModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking ID</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">G-Code</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {scanDetails.multiSkuOrders.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
+                        <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.gCode}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.totalOrders}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime}ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
     </div>
   );
 };

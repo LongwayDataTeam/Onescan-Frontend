@@ -1925,7 +1925,7 @@ const Packing = () => {
              </div>
           </div>
         </div>
-      </div>
+                  </div>
 
       {/* KPI Details Modals */}
       {showSuccessModal && (
@@ -2031,7 +2031,7 @@ const Packing = () => {
               >
                 <XCircle className="w-6 h-6" />
               </button>
-            </div>
+      </div>
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -2056,8 +2056,8 @@ const Packing = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
+    </div>
+        </div>
           </div>
         </div>
       )}

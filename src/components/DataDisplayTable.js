@@ -103,8 +103,8 @@ const DataDisplayTable = ({
       'packing_scanned': 'bg-yellow-100 text-yellow-800',
       'dispatch': 'bg-purple-100 text-purple-800',
       'dispatch_scanned': 'bg-purple-100 text-purple-800',
-      'cancelled': 'bg-red-100 text-red-800',
-      'cancel': 'bg-red-100 text-red-800'
+      'cancelled': 'bg-red-600 text-white font-bold',
+      'cancel': 'bg-red-600 text-white font-bold'
     };
     
     const color = statusColors[status] || 'bg-gray-100 text-gray-800';

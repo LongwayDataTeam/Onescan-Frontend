@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { Package, Eye, EyeOff, Shield } from 'lucide-react';
+import { Package, Eye, EyeOff, Shield, Volume2, Play } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { testDeviceInfoCollection } from '../services/api';
+import { requestAudioPermission, testAudio } from '../utils/soundUtils';
 
 
 const Login = () => {
@@ -256,8 +257,50 @@ const Login = () => {
           </div>
         </form>
 
+        {/* Audio Permission Buttons */}
+        <div className="text-center mt-4 space-y-2">
+          <div className="flex justify-center space-x-2">
+            <button
+              onClick={async () => {
+                try {
+                  const granted = await requestAudioPermission();
+                  if (granted) {
+                    toast.success('Audio notifications enabled!');
+                  } else {
+                    toast.error('Audio permission denied');
+                  }
+                } catch (error) {
+                  toast.error('Failed to enable audio');
+                }
+              }}
+              className="flex items-center space-x-2 px-3 py-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Volume2 className="w-4 h-4" />
+              <span>Enable Audio</span>
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const success = await testAudio();
+                  if (success) {
+                    toast.success('Test sound played!');
+                  } else {
+                    toast.error('Test sound failed');
+                  }
+                } catch (error) {
+                  toast.error('Failed to test sound');
+                }
+              }}
+              className="flex items-center space-x-2 px-3 py-2 text-xs text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
+            >
+              <Play className="w-4 h-4" />
+              <span>Test Sound</span>
+            </button>
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="text-center">
+        <div className="text-center mt-4">
           <p className="text-xs text-gray-500">
             Warehouse Shipment Scanning System v1.0.0
           </p>

@@ -156,7 +156,7 @@ const UserProfile = () => {
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-600 text-white font-bold">
             <XCircle className="w-3 h-3 mr-1" />
             Rejected
           </span>

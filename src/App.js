@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './stores/authStore';
 import { NotificationProvider } from './contexts/NotificationContext';
+import AudioPermissionBanner from './components/AudioPermissionBanner';
 
 // Components
 import Layout from './components/Layout';
@@ -68,6 +69,7 @@ function App() {
     <Router>
       <NotificationProvider>
         <div className="App">
+          <AudioPermissionBanner />
           <Toaster
             position="top-right"
             toastOptions={{
@@ -78,16 +80,34 @@ function App() {
               },
               success: {
                 duration: 3000,
+                style: {
+                  background: '#22c55e',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  border: '2px solid #16a34a',
+                  boxShadow: '0 10px 25px rgba(34, 197, 94, 0.3)',
+                },
                 iconTheme: {
-                  primary: '#22c55e',
-                  secondary: '#fff',
+                  primary: '#fff',
+                  secondary: '#22c55e',
                 },
               },
               error: {
-                duration: 5000,
+                duration: 6000,
+                style: {
+                  background: '#dc2626',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '18px',
+                  border: '3px solid #991b1b',
+                  boxShadow: '0 15px 35px rgba(220, 38, 38, 0.4)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                },
                 iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                  primary: '#fff',
+                  secondary: '#dc2626',
                 },
               },
             }}

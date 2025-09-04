@@ -986,7 +986,7 @@ const DataUpload = () => {
                    className={`px-2 py-1 rounded text-xs font-medium ${
                      isCacheEnabled 
                        ? 'bg-green-100 text-green-800' 
-                       : 'bg-red-100 text-red-800'
+                       : 'bg-red-600 text-white font-bold'
                    }`}
                  >
                    {isCacheEnabled ? 'Enabled' : 'Disabled'}

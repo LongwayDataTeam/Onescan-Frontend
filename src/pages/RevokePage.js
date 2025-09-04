@@ -511,7 +511,7 @@ const RevokePage = () => {
                 type="text"
                   id="revokeTrackingId"
                   value={revokeTrackingId}
-                  onChange={(e) => setRevokeTrackingId(e.target.value)}
+                  onChange={(e) => setRevokeTrackingId(e.target.value.toUpperCase())}
                   onKeyDown={handleRevokeTrackingIdInput}
                   placeholder="Scan tracking ID and press Enter to auto-revert status"
                   className="scan-input w-full"

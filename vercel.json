@@ -24,6 +24,14 @@
       "dest": "/manifest.json"
     },
     {
+      "src": "/success.mp3",
+      "dest": "/success.mp3"
+    },
+    {
+      "src": "/Error.mp3",
+      "dest": "/Error.mp3"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

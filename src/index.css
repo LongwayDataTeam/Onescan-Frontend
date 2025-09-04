@@ -93,7 +93,7 @@
   }
   
   .status-dispatch-pending {
-    @apply bg-red-100 text-red-800;
+    @apply bg-red-600 text-white font-bold;
   }
   
   .status-cancelled {
@@ -186,9 +186,22 @@
 }
 
 @keyframes scanError {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%, 100% { 
+    transform: translateX(0) scale(1);
+    background-color: transparent;
+  }
+  25% { 
+    transform: translateX(-8px) scale(1.02);
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    transform: translateX(0) scale(1.05);
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  75% { 
+    transform: translateX(8px) scale(1.02);
+    background-color: rgba(239, 68, 68, 0.1);
+  }
 }
 
 .scan-success {
@@ -196,7 +209,8 @@
 }
 
 .scan-error {
-  animation: scanError 0.3s ease-in-out;
+  animation: scanError 0.5s ease-in-out;
+  border: 2px solid #ef4444 !important;
 }
 
 /* Focus styles for keyboard navigation */
@@ -259,4 +273,24 @@
 
 .notification-badge {
   animation: notificationPulse 2s infinite;
+}
+
+/* Error toast pulse animation */
+@keyframes errorToastPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 15px 35px rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px rgba(220, 38, 38, 0.6);
+  }
+}
+
+/* Custom error toast styling */
+[data-sonner-toast][data-type="error"] {
+  animation: errorToastPulse 2s infinite !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
 }

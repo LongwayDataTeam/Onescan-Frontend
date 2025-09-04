@@ -826,13 +826,15 @@ const LabelScanning = () => {
 
   // Optimized input handling for ultra-fast scanning
   const handleInputChange = useCallback((e) => {
-    setScanInput(e.target.value);
+    // Convert to uppercase immediately
+    const upperValue = e.target.value.toUpperCase();
+    setScanInput(upperValue);
     
     // Auto-scan when input reaches certain length (for barcode scanners)
-    if (e.target.value.length >= 8 && e.target.value.length <= 20) {
+    if (upperValue.length >= 8 && upperValue.length <= 20) {
       // Small delay to allow barcode scanner to complete
       setTimeout(() => {
-        if (scanInput === e.target.value) {
+        if (scanInput === upperValue) {
           handleScan({ preventDefault: () => {} });
         }
       }, 100);
@@ -968,40 +970,40 @@ const LabelScanning = () => {
   );
 
   const ErrorScanModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-red-600 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto border-4 border-red-800 shadow-2xl">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-red-600 flex items-center">
-            <XCircle className="w-5 h-5 mr-2" />
-            Error Scans ({scanDetails.errorScans.length})
+          <h3 className="text-xl font-bold text-white flex items-center">
+            <XCircle className="w-6 h-6 mr-3 text-white" />
+            ERROR SCANS ({scanDetails.errorScans.length})
           </h3>
           <button
             onClick={() => setShowErrorModal(false)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-white hover:text-red-200 text-2xl font-bold"
           >
             ✕
           </button>
         </div>
         
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-red-400">
+            <thead className="bg-red-800">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tracking ID</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Error</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Speed</th>
+                <th className="px-3 py-3 text-left text-sm font-bold text-white uppercase">Time</th>
+                <th className="px-3 py-3 text-left text-sm font-bold text-white uppercase">Tracking ID</th>
+                <th className="px-3 py-3 text-left text-sm font-bold text-white uppercase">Error</th>
+                <th className="px-3 py-3 text-left text-sm font-bold text-white uppercase">User</th>
+                <th className="px-3 py-3 text-left text-sm font-bold text-white uppercase">Speed</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-red-50 divide-y divide-red-200">
               {scanDetails.errorScans.map((scan) => (
-                <tr key={scan.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm text-gray-900">{scan.timestamp}</td>
-                  <td className="px-3 py-2 text-sm font-mono text-gray-900">{scan.trackingId}</td>
-                  <td className="px-3 py-2 text-sm text-red-600">{scan.message}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900">{scan.user}</td>
-                  <td className="px-3 py-2 text-sm text-gray-900">{scan.responseTime}ms</td>
+                <tr key={scan.id} className="hover:bg-red-100">
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">{scan.timestamp}</td>
+                  <td className="px-3 py-3 text-sm font-mono font-bold text-gray-900">{scan.trackingId}</td>
+                  <td className="px-3 py-3 text-sm font-bold text-red-800 bg-red-200">{scan.message}</td>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">{scan.user}</td>
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900">{scan.responseTime}ms</td>
                 </tr>
               ))}
             </tbody>
@@ -1518,15 +1520,15 @@ const LabelScanning = () => {
               {/* Clickable Error Count */}
               <button
                 onClick={() => setShowErrorModal(true)}
-                className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-200 hover:from-red-100 hover:to-pink-100 transition-all duration-200 cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 bg-red-600 rounded-lg border-2 border-red-700 hover:bg-red-700 transition-all duration-200 cursor-pointer group shadow-lg"
               >
-                <span className="text-sm font-medium text-gray-700 flex items-center">
-                  <XCircle className="w-4 h-4 mr-2 text-red-600" />
+                <span className="text-sm font-medium text-white flex items-center">
+                  <XCircle className="w-4 h-4 mr-2 text-white" />
                   Error Scans
                 </span>
                 <div className="flex items-center">
-                  <span className="text-lg font-bold text-red-600 mr-2">{globalKPIs.errorScans}</span>
-                  <Eye className="w-4 h-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-lg font-bold text-white mr-2">{globalKPIs.errorScans}</span>
+                  <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </button>
               

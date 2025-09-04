@@ -220,7 +220,7 @@ const CancelShipment = () => {
                 type="text"
                 id="cancelTrackingId"
                 value={cancelTrackingId}
-                onChange={(e) => setCancelTrackingId(e.target.value)}
+                onChange={(e) => setCancelTrackingId(e.target.value.toUpperCase())}
                 onKeyDown={handleCancelTrackingIdInput}
                 placeholder="Scan/Enter tracking ID and press Enter"
                 className="scan-input w-full"

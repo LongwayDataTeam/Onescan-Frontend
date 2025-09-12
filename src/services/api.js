@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://onescan-backend-477154991805.asia-south1.run.app',
+  baseURL: process.env.REACT_APP_API_URL ||'http://localhost:8000',
   timeout: 120000, // 120 seconds - increased for Redis operations
   headers: {
     'Content-Type': 'application/json',
@@ -128,7 +128,12 @@ export const adminAPI = {
   revokeShipment: (data) => api.post('/admin/revoke', data),
   getPackingPending: () => api.get('/admin/pending/packing'),
   getDispatchPending: () => api.get('/admin/pending/dispatch'),
-
+  
+  // Cleanup and validation endpoints
+  cleanupBlankEntries: () => api.post('/admin/cleanup-blank-entries'),
+  autoCleanupBlankEntries: () => api.post('/admin/auto-cleanup-blank-entries'),
+  startRealtimeCleanup: () => api.post('/admin/start-realtime-cleanup'),
+  validateEntries: () => api.get('/admin/validate-entries'),
 };
 
 export const dataAPI = {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Truck, CheckCircle, XCircle, Clock, Search, Package, Zap, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
-import { scanAPI } from '../services/api';
+import { scanAPI, adminAPI } from '../services/api';
 import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
 
 const Dispatch = () => {
@@ -17,6 +17,9 @@ const Dispatch = () => {
   
   // Dispatch Pending State
   const [pendingTrackingId, setPendingTrackingId] = useState('');
+  const [cleanupStats, setCleanupStats] = useState(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pendingCurrentStatus, setPendingCurrentStatus] = useState('');
   const [pendingStatusLoading, setPendingStatusLoading] = useState(false);
@@ -695,6 +698,93 @@ const Dispatch = () => {
     }
   };
 
+  // Fetch pending dispatch data
+  const fetchPendingDispatch = async () => {
+    try {
+      const response = await adminAPI.getDispatchPending();
+      if (response.data.ok) {
+        // You can add state to store pending dispatch data if needed
+        console.log('Pending dispatch data refreshed:', response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching pending dispatch:', error);
+    }
+  };
+
+  // Cleanup functions
+  const handleValidateEntries = async () => {
+    setIsValidating(true);
+    try {
+      const response = await adminAPI.validateEntries();
+      if (response.data.ok) {
+        setCleanupStats(response.data.data);
+        toast.success('Validation completed successfully');
+      } else {
+        toast.error(response.data.message || 'Validation failed');
+      }
+    } catch (error) {
+      console.error('Error validating entries:', error);
+      toast.error('Failed to validate entries');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleCleanupBlankEntries = async () => {
+    if (!window.confirm('Are you sure you want to delete all blank entries? This action cannot be undone.')) {
+      return;
+    }
+    
+    setIsCleaningUp(true);
+    try {
+      const response = await adminAPI.cleanupBlankEntries();
+      if (response.data.ok) {
+        setCleanupStats(response.data.data);
+        toast.success(`Cleanup completed! Deleted ${response.data.data.blank_entries_deleted} blank entries.`);
+        // Refresh data
+        fetchPendingDispatch();
+      } else {
+        toast.error(response.data.message || 'Cleanup failed');
+      }
+    } catch (error) {
+      console.error('Error cleaning up entries:', error);
+      toast.error('Failed to cleanup entries');
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+
+  const handleAutoCleanupBlankEntries = async () => {
+    try {
+      const response = await adminAPI.autoCleanupBlankEntries();
+      if (response.data.ok) {
+        toast.success('🤖 Automatic cleanup started in background! Check logs for progress.');
+        console.log('Auto cleanup started:', response.data.data);
+      } else {
+        toast.error(response.data.message || 'Failed to start automatic cleanup');
+      }
+    } catch (error) {
+      console.error('Error starting automatic cleanup:', error);
+      toast.error('Failed to start automatic cleanup');
+    }
+  };
+
+  const handleRealtimeCleanup = async () => {
+    try {
+      const response = await adminAPI.startRealtimeCleanup();
+      if (response.data.ok) {
+        toast.success('⚡ Real-time cleanup monitor started! Will check every 5 seconds and clean blank entries immediately.');
+        console.log('Real-time cleanup started:', response.data.data);
+      } else {
+        toast.error(response.data.message || 'Failed to start real-time cleanup');
+      }
+    } catch (error) {
+      console.error('Error starting real-time cleanup:', error);
+      toast.error('Failed to start real-time cleanup');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
@@ -718,6 +808,79 @@ const Dispatch = () => {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Cleanup Section */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Data Cleanup</h2>
+              <p className="text-sm text-gray-600">Remove blank entries with missing tracking IDs or tracking numbers</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleValidateEntries}
+                disabled={isValidating}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                {isValidating ? 'Validating...' : 'Validate Entries'}
+              </button>
+              <button
+                onClick={handleCleanupBlankEntries}
+                disabled={isCleaningUp}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                {isCleaningUp ? 'Cleaning...' : 'Cleanup Blank Entries'}
+              </button>
+              <button
+                onClick={handleAutoCleanupBlankEntries}
+                disabled={isCleaningUp}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                🤖 Auto Cleanup (Background)
+              </button>
+              <button
+                onClick={handleRealtimeCleanup}
+                disabled={isCleaningUp}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                ⚡ Real-time Cleanup (5s)
+              </button>
+            </div>
+          </div>
+          
+
+          {/* Cleanup Stats */}
+          {cleanupStats && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-900 mb-2">Cleanup Results</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Total Checked:</span>
+                  <span className="ml-2 font-medium">{cleanupStats.total_checked || cleanupStats.total_entries}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Valid Entries:</span>
+                  <span className="ml-2 font-medium text-green-600">{cleanupStats.valid_entries_remaining || cleanupStats.valid_entries}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Blank Found:</span>
+                  <span className="ml-2 font-medium text-red-600">{cleanupStats.blank_entries_found || cleanupStats.completely_blank}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Deleted:</span>
+                  <span className="ml-2 font-medium text-red-600">{cleanupStats.blank_entries_deleted || 0}</span>
+                </div>
+              </div>
+              {cleanupStats.processing_time_seconds && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Processing time: {cleanupStats.processing_time_seconds}s
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

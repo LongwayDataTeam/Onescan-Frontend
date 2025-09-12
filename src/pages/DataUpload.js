@@ -865,9 +865,13 @@ const DataUpload = () => {
                 >
                   <option value="">All Status</option>
                   <option value="Unlabeled">Unlabeled</option>
+                  <option value="Shipped">Shipped</option>
                   <option value="label_scanned">Label Scanned</option>
-                  <option value="packing">Packing</option>
-                  <option value="dispatch">Dispatch</option>
+                  <option value="packing_pending_scanned">Packing Pending Scanned</option>
+                  <option value="packing_scanned">Packing Scanned</option>
+                  <option value="dispatch_pending_scanned">Dispatch Pending Scanned</option>
+                  <option value="dispatch_scanned">Dispatch Scanned</option>
+                  <option value="cancel">Cancel</option>
                   <option value="cancelled">Cancelled</option>
                   </select>
               </div>
@@ -883,10 +887,25 @@ const DataUpload = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Couriers</option>
-                  <option value="DTDC">DTDC</option>
-                  <option value="BlueDart">BlueDart</option>
-                  <option value="FedEx">FedEx</option>
-                  <option value="Amazon">Amazon</option>
+                  <option value="Amazon DF">Amazon DF</option>
+                  <option value="E-Delhivery">E-Delhivery</option>
+                  <option value="E-Large">E-Large</option>
+                  <option value="E-Xpressbees">E-Xpressbees</option>
+                  <option value="Ekart">Ekart</option>
+                  <option value="JIO-Delhivery">JIO-Delhivery</option>
+                  <option value="JIO-Xpressbees">JIO-Xpressbees</option>
+                  <option value="M-Delhivery">M-Delhivery</option>
+                  <option value="M-Delhivery DFS">M-Delhivery DFS</option>
+                  <option value="M-Ekart">M-Ekart</option>
+                  <option value="M-Large">M-Large</option>
+                  <option value="M-Moglix">M-Moglix</option>
+                  <option value="M-XpressBees">M-XpressBees</option>
+                  <option value="Myntra Ekart">Myntra Ekart</option>
+                  <option value="Shipway Delhivery">Shipway Delhivery</option>
+                  <option value="Shipway Ekart">Shipway Ekart</option>
+                  <option value="SHIPWAY PRIM EKART">SHIPWAY PRIM EKART</option>
+                  <option value="SHIPWAY PRIME XPRESSBEES">SHIPWAY PRIME XPRESSBEES</option>
+                  <option value="Shipway Xpressbees">Shipway Xpressbees</option>
                 </select>
               </div>
                 
@@ -901,10 +920,12 @@ const DataUpload = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Channels</option>
-                  <option value="Amazon">Amazon</option>
-                  <option value="Flipkart">Flipkart</option>
+                  <option value="Jiomart">Jiomart</option>
                   <option value="Myntra">Myntra</option>
-                  <option value="Nykaa">Nykaa</option>
+                  <option value="Shopify">Shopify</option>
+                  <option value="Moglix">Moglix</option>
+                  <option value="VC Amazon DF">VC Amazon DF</option>
+                  <option value="Flipkart">Flipkart</option>
                 </select>
               </div>
             </div>

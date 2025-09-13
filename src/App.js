@@ -18,6 +18,7 @@ import CancelShipment from './pages/CancelShipment';
 import UserManagement from './pages/UserManagement';
 import ApprovalRequests from './pages/ApprovalRequests';
 import UserProfile from './pages/UserProfile';
+import Catalogue from './pages/Catalogue';
 import Integration from './pages/Integration';
 import TrackerDocs from './pages/TrackerDocs';
 import Logger from './pages/Logger';
@@ -169,6 +170,12 @@ function App() {
               } />
               
               <Route path="user-profile" element={<UserProfile />} />
+              
+              <Route path="catalogue" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer']}>
+                  <Catalogue />
+                </RoleBasedRoute>
+              } />
               
               <Route path="integration" element={
                 <RoleBasedRoute allowedRoles={['developer']}>

@@ -18,7 +18,8 @@ import {
   Shield,
   Database,
   Volume2,
-  VolumeX
+  VolumeX,
+  Book
 } from 'lucide-react';
 
 const Layout = () => {
@@ -94,6 +95,12 @@ const Layout = () => {
       path: '/user-profile',
       icon: User,
       roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
+    },
+    {
+      name: 'Catalogue',
+      path: '/catalogue',
+      icon: Book,
+      roles: ['super_admin', 'developer'],
     },
     {
       name: 'Integration',

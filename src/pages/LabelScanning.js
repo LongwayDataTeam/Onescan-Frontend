@@ -54,6 +54,15 @@ const LabelScanning = () => {
       setCourierStatsLoading(true);
       console.log('🔄 Fetching ALL courier stats from DataUpload API...');
       
+      // Trigger real-time cleanup automatically when refreshing stats
+      try {
+        const { adminAPI } = await import('../services/api');
+        await adminAPI.startRealtimeCleanup();
+        console.log('⚡ Real-time cleanup triggered during courier stats refresh');
+      } catch (cleanupError) {
+        console.log('Real-time cleanup failed, continuing with stats refresh:', cleanupError);
+      }
+      
       // Fetch ALL data from DataUpload API using the new function
       console.log('🚀 Starting API call to getAllDataForStats...');
       const response = await dataAPI.getAllDataForStats();

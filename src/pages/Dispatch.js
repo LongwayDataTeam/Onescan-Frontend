@@ -561,6 +561,14 @@ const Dispatch = () => {
       // Check if item can be moved to dispatch pending
       if (currentStatus === 'dispatch_scanned') {
         toast.error(`Item ${pendingTrackingId} has already been dispatched and cannot be moved to pending.`);
+        
+        // Play error sound for already dispatched item
+        try {
+          await playErrorSound();
+        } catch (error) {
+          console.error('Failed to play error sound:', error);
+        }
+        
         addScanLog({
           type: 'error',
           action: 'Dispatch Pending',
@@ -580,6 +588,14 @@ const Dispatch = () => {
       
       if (currentStatus === 'label_scanned') {
         toast.error(`Item ${pendingTrackingId} needs to be packed first before dispatch pending. Current status: ${currentStatus}`);
+        
+        // Play error sound for item that needs packing
+        try {
+          await playErrorSound();
+        } catch (error) {
+          console.error('Failed to play error sound:', error);
+        }
+        
         addScanLog({
           type: 'error',
           action: 'Dispatch Pending',
@@ -599,6 +615,14 @@ const Dispatch = () => {
       
       if (currentStatus === 'unlabeled') {
         toast.error(`Item ${pendingTrackingId} needs to be labeled first before dispatch pending. Current status: ${currentStatus}`);
+        
+        // Play error sound for item that needs labeling
+        try {
+          await playErrorSound();
+        } catch (error) {
+          console.error('Failed to play error sound:', error);
+        }
+        
         addScanLog({
           type: 'error',
           action: 'Dispatch Pending',
@@ -631,6 +655,14 @@ const Dispatch = () => {
         toast.success(`Dispatch pending scan successful for ${pendingTrackingId}`);
       } else {
         toast.error(response.data?.message || 'Failed to move to dispatch pending');
+        
+        // Play error sound for API failure
+        try {
+          await playErrorSound();
+        } catch (error) {
+          console.error('Failed to play error sound:', error);
+        }
+        
         throw new Error(response.data?.message || 'API call failed');
       }
       
@@ -663,6 +695,13 @@ const Dispatch = () => {
       }
       
       toast.error(errorMessage);
+      
+      // Play error sound for network/API errors
+      try {
+        await playErrorSound();
+      } catch (soundError) {
+        console.error('Failed to play error sound:', soundError);
+      }
       
       // ❌ ERROR LOGGER: Add to table and console
       addScanLog({

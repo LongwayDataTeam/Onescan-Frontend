@@ -250,6 +250,15 @@ const DataView = () => {
       setRefreshingKPIs(true);
       setError('🔄 Refreshing KPI metrics...');
       
+      // Trigger realtime cleanup automatically when refreshing KPIs
+      try {
+        const { adminAPI } = await import('../services/api');
+        await adminAPI.startRealtimeCleanup();
+        console.log('⚡ Real-time cleanup triggered during KPI refresh');
+      } catch (cleanupError) {
+        console.log('Real-time cleanup failed, continuing with KPI refresh:', cleanupError);
+      }
+      
       // Clear KPI cache on backend
       await dataAPI.clearKpiCache();
       

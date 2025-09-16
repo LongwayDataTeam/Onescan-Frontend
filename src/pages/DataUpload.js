@@ -309,14 +309,14 @@ const DataUpload = () => {
       
       const response = await dataAPI.uploadData(formData);
       
-      if (response.ok) {
+      if (response.data && response.data.ok) {
         toast.success('File uploaded successfully!');
         playSuccessSound();
         setSelectedFile(null);
         // Refresh data after upload
         fetchData(1, false);
       } else {
-        toast.error(response.message || 'Upload failed');
+        toast.error(response.data?.message || response.message || 'Upload failed');
         try {
           await playErrorSound();
           console.log('🔊 DataUpload: Error sound triggered for upload failure');
@@ -395,7 +395,7 @@ const DataUpload = () => {
       
       const response = await dataAPI.clearAllData();
       
-      if (response.ok) {
+      if (response.data && response.data.ok) {
         toast.success('✅ All data deleted successfully!');
         playSuccessSound();
         setError('');
@@ -414,7 +414,7 @@ const DataUpload = () => {
         setCache(new Map());
         setCacheTimestamps(new Map());
       } else {
-        toast.error(response.message || 'Failed to delete data');
+        toast.error(response.data?.message || response.message || 'Failed to delete data');
         setError('Failed to delete data');
       }
     } catch (err) {
@@ -438,14 +438,14 @@ const DataUpload = () => {
       
       const response = await dataAPI.clearAllScanningData();
       
-      if (response.ok) {
+      if (response.data && response.data.ok) {
         toast.success('✅ Scanning data deleted successfully!');
         playSuccessSound();
         setError('');
         // Refresh data to show updated counts
         fetchData(1, true);
       } else {
-        toast.error(response.message || 'Failed to delete scanning data');
+        toast.error(response.data?.message || response.message || 'Failed to delete scanning data');
         try {
           await playErrorSound();
           console.log('🔊 DataUpload: Error sound triggered for scanning data deletion failure');
@@ -468,6 +468,15 @@ const DataUpload = () => {
     try {
       setRefreshingKPIs(true);
       setError('🔄 Refreshing KPI metrics...');
+      
+      // Trigger realtime cleanup automatically when refreshing KPIs
+      try {
+        const { adminAPI } = await import('../services/api');
+        await adminAPI.startRealtimeCleanup();
+        console.log('⚡ Real-time cleanup triggered during KPI refresh');
+      } catch (cleanupError) {
+        console.log('Real-time cleanup failed, continuing with KPI refresh:', cleanupError);
+      }
       
       // Clear KPI cache on backend
       await dataAPI.clearKpiCache();

@@ -134,7 +134,16 @@ const Packing = () => {
   const calculatePackingCourierStats = async () => {
     try {
       setPackingCourierStatsLoading(true);
-
+      console.log('🔄 Fetching ALL packing courier stats from DataUpload API...');
+      
+      // Trigger real-time cleanup automatically when refreshing stats
+      try {
+        const { adminAPI } = await import('../services/api');
+        await adminAPI.startRealtimeCleanup();
+        console.log('⚡ Real-time cleanup triggered during packing stats refresh');
+      } catch (cleanupError) {
+        console.log('Real-time cleanup failed, continuing with stats refresh:', cleanupError);
+      }
       
       // Import dataAPI dynamically to avoid circular imports
       const { dataAPI } = await import('../services/api');
@@ -401,8 +410,8 @@ const Packing = () => {
           }
            
            // Update progress based on single vs multi-SKU
-          if (status === 'PACKING_SCANNED') {
-             // All orders packed for this tracking ID
+          if (status === 'packing_scanned' || status === 'PACKING_SCANNED') {
+             // All orders packed for this tracking ID - clear both inputs
              setPackingProgress(null);
             // Reset form completely for next tracking ID
              setTrackingId('');
@@ -411,6 +420,9 @@ const Packing = () => {
              setTrackingRecord(null);
              // Focus back to tracking ID input for next scan
              setShouldFocusTrackingId(true);
+             
+             // Show completion message
+             toast.success('🎉 All orders packed! Ready for next tracking ID.');
            } else {
             // Check if this is single-SKU or multi-SKU
             const isMultiSku = packingProgress && packingProgress.totalOrders > 1;
@@ -463,6 +475,13 @@ const Packing = () => {
           const errorMessage = message || 'Packing scan failed';
           toast.error(errorMessage);
           
+          // Play error sound for failed scans
+          try {
+            await playErrorSound();
+          } catch (error) {
+            console.error('Failed to play error sound:', error);
+          }
+          
           // ❌ ERROR LOGGER: Add to table and console
           addScanLog({
             type: 'error',
@@ -499,6 +518,12 @@ const Packing = () => {
     } catch (error) {
       toast.error('Packing scan failed');
 
+      // Play error sound for network/API errors
+      try {
+        await playErrorSound();
+      } catch (soundError) {
+        console.error('Failed to play error sound:', soundError);
+      }
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({
@@ -697,7 +722,10 @@ const Packing = () => {
 
       // Check the actual response structure from backend
       if (isSuccess) {
-        toast.success(`Packing scan successful for ${trackingId}`);
+        const status = response.data?.status;
+        const message = response.data?.message || `Packing scan successful for ${trackingId}`;
+        
+        toast.success(message);
         
         // Add to success scan details
         addScanDetail('successScans', {
@@ -726,13 +754,37 @@ const Packing = () => {
 
         }
         
-        // Reset form completely for next tracking ID
-        setTrackingId('');
-        setGCode('');
-        setTrackingIdValidated(false);
-        setTrackingRecord(null);
-        // Focus back to tracking ID input for next scan
-        setShouldFocusTrackingId(true);
+        // Check if all orders are packed (100% completion)
+        if (status === 'packing_scanned' || status === 'PACKING_SCANNED') {
+          // All orders packed for this tracking ID - clear both inputs
+          setPackingProgress(null);
+          setTrackingId('');
+          setGCode('');
+          setTrackingIdValidated(false);
+          setTrackingRecord(null);
+          setShouldFocusTrackingId(true);
+          
+          // Show completion message
+          toast.success('🎉 All orders packed! Ready for next tracking ID.');
+        } else {
+          // Partial completion - handle based on single vs multi-SKU
+          if (isMultiSku) {
+            // Multi-SKU: keep tracking ID, clear only gcode for consecutive scanning
+            setGCode(''); // Only clear gcode field
+            // Keep tracking ID and progress for consecutive scanning
+            // Focus back to gcode input for next gcode scan
+            setTimeout(() => {
+              gCodeInputRef.current?.focus();
+            }, 100);
+          } else {
+            // Single-SKU: reset form completely
+            setTrackingId('');
+            setGCode('');
+            setTrackingIdValidated(false);
+            setTrackingRecord(null);
+            setShouldFocusTrackingId(true);
+          }
+        }
       } else {
         toast.error(response.data?.message || 'Packing scan failed');
         
@@ -752,13 +804,21 @@ const Packing = () => {
 
         }
         
-        // Reset form completely for next tracking ID
-        setTrackingId('');
-        setGCode('');
-        setTrackingIdValidated(false);
-        setTrackingRecord(null);
-        // Focus back to tracking ID input for next scan
-        setShouldFocusTrackingId(true);
+        // For errors, only clear G-Code for multi-SKU, reset completely for single-SKU
+        if (isMultiSku) {
+          // Multi-SKU: keep tracking ID, clear only gcode for retry
+          setGCode('');
+          setTimeout(() => {
+            gCodeInputRef.current?.focus();
+          }, 100);
+        } else {
+          // Single-SKU: reset form completely
+          setTrackingId('');
+          setGCode('');
+          setTrackingIdValidated(false);
+          setTrackingRecord(null);
+          setShouldFocusTrackingId(true);
+        }
       }
     } catch (error) {
       const responseTime = Date.now() - startTime;
@@ -784,13 +844,22 @@ const Packing = () => {
 
       }
       
-      // Reset form completely for next tracking ID
-      setTrackingId('');
-      setGCode('');
-      setTrackingIdValidated(false);
-      setTrackingRecord(null);
-      // Focus back to tracking ID input for next scan
-      setShouldFocusTrackingId(true);
+      // For network errors, only clear G-Code for multi-SKU, reset completely for single-SKU
+      const isMultiSku = packingProgress?.totalOrders > 1;
+      if (isMultiSku) {
+        // Multi-SKU: keep tracking ID, clear only gcode for retry
+        setGCode('');
+        setTimeout(() => {
+          gCodeInputRef.current?.focus();
+        }, 100);
+      } else {
+        // Single-SKU: reset form completely
+        setTrackingId('');
+        setGCode('');
+        setTrackingIdValidated(false);
+        setTrackingRecord(null);
+        setShouldFocusTrackingId(true);
+      }
     } finally {
       setScanningLoading(false);
     }
@@ -851,6 +920,13 @@ const Packing = () => {
       } else {
         toast.error(response.data?.message || 'Failed to mark as pending');
         
+        // Play error sound for failed packing pending
+        try {
+          await playErrorSound();
+        } catch (error) {
+          console.error('Failed to play error sound:', error);
+        }
+        
         // ❌ ERROR LOGGER: Add to table and console
         addScanLog({
           type: 'error',
@@ -869,6 +945,12 @@ const Packing = () => {
     } catch (error) {
       toast.error('Packing pending failed');
 
+      // Play error sound for network/API errors
+      try {
+        await playErrorSound();
+      } catch (soundError) {
+        console.error('Failed to play error sound:', soundError);
+      }
       
       // ❌ NETWORK/API ERROR LOGGER: Add to table and console
       addScanLog({

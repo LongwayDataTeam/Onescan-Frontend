@@ -725,14 +725,18 @@ const Dispatch = () => {
 
   // Handle Enter key press for tracking ID input
   const handleTrackingIdInput = (e) => {
-    if (e.key === 'Enter' && trackingId.trim()) {
+    const value = e.target.value.trim().toUpperCase();
+    setTrackingId(value);
+    if (e.key === 'Enter' && value) {
       handleDispatchScan();
     }
   };
 
   // Handle Enter key press for pending tracking ID input
   const handlePendingTrackingIdInput = (e) => {
-    if (e.key === 'Enter' && pendingTrackingId.trim()) {
+    const value = e.target.value.trim().toUpperCase();
+    setPendingTrackingId(value);
+    if (e.key === 'Enter' && value) {
       handlePendingScan();
     }
   };
@@ -1006,7 +1010,7 @@ const Dispatch = () => {
                           type="text"
                           id="trackingId"
                           value={trackingId}
-                          onChange={(e) => setTrackingId(e.target.value)}
+                          onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
                           onKeyDown={handleTrackingIdInput}
                           placeholder="Scan/Enter tracking ID and press Enter"
                           className="scan-input w-full"
@@ -1127,7 +1131,7 @@ const Dispatch = () => {
                           type="text"
                           id="pendingTrackingId"
                           value={pendingTrackingId}
-                          onChange={(e) => setPendingTrackingId(e.target.value)}
+                          onChange={(e) => setPendingTrackingId(e.target.value.toUpperCase())}
                           onKeyDown={handlePendingTrackingIdInput}
                           placeholder="Scan/Enter tracking ID and press Enter"
                           className="scan-input w-full"

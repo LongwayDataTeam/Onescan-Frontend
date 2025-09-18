@@ -276,7 +276,7 @@ const Packing = () => {
 
   // Handle Tracking ID Input (Step 1)
   const handleTrackingIdInput = async (e) => {
-    const value = e.target.value.trim();
+    const value = e.target.value.trim().toUpperCase();
     setTrackingId(value);
     
     // Auto-focus to G-Code input when Enter is pressed
@@ -321,7 +321,7 @@ const Packing = () => {
 
   // Handle G-Code Input (Step 2) - INSTANT VALIDATION
   const handleGCodeInput = async (e) => {
-    const value = e.target.value.trim();
+    const value = e.target.value.trim().toUpperCase();
     setGCode(value);
     
     // Auto-process when Enter is pressed - INSTANT VALIDATION
@@ -1226,7 +1226,7 @@ const Packing = () => {
                                 type="text"
                                 id="trackingId"
                                 value={trackingId}
-                                onChange={(e) => setTrackingId(e.target.value)}
+                                onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
                                 onKeyDown={handleTrackingIdInput}
                                 placeholder="Scan/Enter tracking ID and press Enter"
                                 className="scan-input w-full"
@@ -1292,7 +1292,7 @@ const Packing = () => {
                                 type="text"
                                 id="gCode"
                                 value={gCode}
-                                onChange={(e) => setGCode(e.target.value)}
+                                onChange={(e) => setGCode(e.target.value.toUpperCase())}
                                 onKeyDown={handleGCodeInput}
                                 placeholder={trackingId.trim() 
                                   ? packingProgress && packingProgress.totalOrders > 1
@@ -1505,7 +1505,7 @@ const Packing = () => {
                   type="text"
                   id="pendingTrackingId"
                   value={pendingTrackingId}
-                  onChange={(e) => setPendingTrackingId(e.target.value)}
+                  onChange={(e) => setPendingTrackingId(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handlePendingScan()}
                   placeholder="Enter tracking ID and press Enter"
                   className="scan-input w-full"
@@ -1560,7 +1560,7 @@ const Packing = () => {
                       ref={replacementTrackingIdInputRef}
                       type="text"
                       value={replacementTrackingId}
-                      onChange={(e) => setReplacementTrackingId(e.target.value)}
+                      onChange={(e) => setReplacementTrackingId(e.target.value.toUpperCase())}
                     onKeyPress={(e) => e.key === 'Enter' && handleGetSKUs()}
                     placeholder="Enter Tracking ID"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -1626,7 +1626,7 @@ const Packing = () => {
                       <input
                         type="text"
                         value={newPackedGCode}
-                        onChange={(e) => setNewPackedGCode(e.target.value)}
+                        onChange={(e) => setNewPackedGCode(e.target.value.toUpperCase())}
                       placeholder="Enter new packed G-Code/EAN"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       />

@@ -24,6 +24,16 @@ const CancelShipment = () => {
     document.title = 'Cancel Shipment - OneScan';
   }, []);
 
+  // Ensure input is focused when component mounts and when loading stops
+  useEffect(() => {
+    if (!cancelLoading) {
+      const timer = setTimeout(() => {
+        cancelTrackingIdInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [cancelLoading]);
+
   // Listen for data refresh and clear events from other components
   useEffect(() => {
     const handleClearData = (event) => {
@@ -131,7 +141,9 @@ const CancelShipment = () => {
         window.dispatchEvent(refreshEvent);
         
         // Focus back to input for next scan
-        cancelTrackingIdInputRef.current?.focus();
+        setTimeout(() => {
+          cancelTrackingIdInputRef.current?.focus();
+        }, 100);
       } else {
         toast.error(response.data?.message || 'Shipment cancellation failed');
         // Play error sound for scanning error
@@ -152,6 +164,12 @@ const CancelShipment = () => {
           message: response.data?.message || 'Shipment cancellation failed',
           user: user?.username || user?.user_id || 'Unknown'
         });
+        
+        // Clear input and focus for next scan after error
+        setCancelTrackingId('');
+        setTimeout(() => {
+          cancelTrackingIdInputRef.current?.focus();
+        }, 100);
       }
       
     } catch (error) {
@@ -175,6 +193,12 @@ const CancelShipment = () => {
         message: error.message || 'Shipment cancellation failed',
         user: user?.username || user?.user_id || 'Unknown'
       });
+      
+      // Clear input and focus for next scan after network error
+      setCancelTrackingId('');
+      setTimeout(() => {
+        cancelTrackingIdInputRef.current?.focus();
+      }, 100);
     } finally {
       setCancelLoading(false);
     }
@@ -226,6 +250,8 @@ const CancelShipment = () => {
                 className="scan-input w-full"
                 autoFocus
                 disabled={cancelLoading}
+                autoComplete="off"
+                spellCheck="false"
               />
             </div>
             

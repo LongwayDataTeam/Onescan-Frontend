@@ -47,7 +47,7 @@ const CancelShipment = () => {
       localStorage.removeItem('cancelShipmentPageData');
       
       console.log('🗑️ Cancel Shipment: All cancel data cleared');
-      toast.info('Cancel shipment data cleared due to main data clear operation');
+      toast('Cancel shipment data cleared due to main data clear operation');
     };
 
     const handleRefreshData = (event) => {

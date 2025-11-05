@@ -19,6 +19,14 @@ import UserManagement from './pages/UserManagement';
 import ApprovalRequests from './pages/ApprovalRequests';
 import UserProfile from './pages/UserProfile';
 import Catalogue from './pages/Catalogue';
+import CatalogueListing from './pages/CatalogueListing';
+import CatalogueTargetPrice from './pages/CatalogueTargetPrice';
+import B2BPOPunching from './pages/B2BPOPunching';
+import B2BDashboard from './pages/B2BDashboard';
+import B2BPendingPO from './pages/B2BPendingPO';
+import B2BPlanningPO from './pages/B2BPlanningPO';
+import B2BDispatchPO from './pages/B2BDispatchPO';
+import B2BDeliveredPO from './pages/B2BDeliveredPO';
 import Integration from './pages/Integration';
 import TrackerDocs from './pages/TrackerDocs';
 import Logger from './pages/Logger';
@@ -174,6 +182,55 @@ function App() {
               <Route path="catalogue" element={
                 <RoleBasedRoute allowedRoles={['super_admin', 'developer']}>
                   <Catalogue />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="catalogue-listing" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin']}>
+                  <CatalogueListing />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="catalogue-target-price" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'manager']}>
+                  <CatalogueTargetPrice />
+                </RoleBasedRoute>
+              } />
+              
+              {/* B2B Routes */}
+              <Route path="b2b-po-punching" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops']}>
+                  <B2BPOPunching />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="b2b-dashboard" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops']}>
+                  <B2BDashboard />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="b2b-pending-po" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops']}>
+                  <B2BPendingPO />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="b2b-planning-po" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops']}>
+                  <B2BPlanningPO />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="b2b-dispatch-po" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops']}>
+                  <B2BDispatchPO />
+                </RoleBasedRoute>
+              } />
+              
+              <Route path="b2b-delivered-po" element={
+                <RoleBasedRoute allowedRoles={['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops']}>
+                  <B2BDeliveredPO />
                 </RoleBasedRoute>
               } />
               

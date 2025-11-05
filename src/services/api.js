@@ -2,7 +2,16 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://onescan-backend-477154991805.asia-south1.run.app',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  timeout: 120000, // 120 seconds - increased for Redis operations
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Create axios instance for test endpoints (no auth)
+const testApi = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
   timeout: 120000, // 120 seconds - increased for Redis operations
   headers: {
     'Content-Type': 'application/json',
@@ -231,6 +240,121 @@ export const activityAPI = {
   getRecentActivityLogs: (limit = 100) => api.get(`/logs/activity/logs/recent?limit=${limit}`),
   getUserActivityLogs: (userId, limit = 100) => api.get(`/logs/activity/logs/user/${userId}?limit=${limit}`),
   clearActivityLogs: () => api.delete('/logs/activity/logs/clear'),
+};
+
+// GCS PO Management API
+export const gcsAPI = {
+  // Health check
+  healthCheck: () => api.get('/gcs-po/health'),
+  
+  // Raw data endpoint (for testing)
+  getRawData: () => api.get('/gcs-po/raw-data'),
+  
+  // PO CRUD operations
+  createPO: (poData) => api.post('/gcs-po/po', poData),
+  getPOList: () => api.get('/gcs-po/po-list'),
+  getPODetails: (poNumber) => api.get(`/gcs-po/po/${poNumber}`),
+  updatePO: (poNumber, poData) => api.put(`/gcs-po/po/${poNumber}`, poData),
+  deletePO: (poNumber) => api.delete(`/gcs-po/po/${poNumber}`),
+  
+  // Test endpoints (no auth required)
+  createPOTest: (poData) => testApi.post('/gcs-po/po-test', poData),
+  getPOListTest: () => testApi.get('/gcs-po/po-list-test'),
+  updatePOTest: (poNumber, poData) => testApi.put(`/gcs-po/po-test/${poNumber}`, poData),
+  deletePOTest: (poNumber) => testApi.delete(`/gcs-po/po-test/${poNumber}`),
+  
+  // File management
+  syncAllFiles: () => api.post('/gcs-po/sync-all-files'),
+  syncAllFilesTest: () => testApi.post('/gcs-po/sync-all-files-test'),
+  syncPOFiles: (poNumber) => api.post(`/gcs-po/sync-po-files/${poNumber}`),
+  syncPOFilesTest: (poNumber) => testApi.post(`/gcs-po/sync-po-files-test/${poNumber}`),
+  moveTempFiles: (poNumber) => api.post(`/gcs-po/move-temp-files/${poNumber}`),
+  
+  // Validation helper
+  validatePOData: (poData) => {
+    const errors = [];
+    
+    // Required fields validation
+    if (!poData.po_number || !poData.po_number.trim()) {
+      errors.push('PO Number is required');
+    } else if (poData.po_number.trim().length < 3) {
+      errors.push('PO Number must be at least 3 characters');
+    } else if (poData.po_number.trim().length > 50) {
+      errors.push('PO Number must be less than 50 characters');
+    }
+    
+    if (!poData.platform || !poData.platform.trim()) {
+      errors.push('Platform is required');
+    } else if (poData.platform.trim().length < 2) {
+      errors.push('Platform must be at least 2 characters');
+    }
+    
+    if (!poData.t_wh || !poData.t_wh.trim()) {
+      errors.push('T-WH is required');
+    } else if (poData.t_wh.trim().length < 2) {
+      errors.push('T-WH must be at least 2 characters');
+    }
+    
+    if (!poData.po_date || !poData.po_date.trim()) {
+      errors.push('PO Date is required');
+    }
+    
+    if (!poData.currency || !poData.currency.trim()) {
+      errors.push('Currency is required');
+    } else {
+      const validCurrencies = ['INR', 'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+      if (!validCurrencies.includes(poData.currency.trim().toUpperCase())) {
+        errors.push(`Currency must be one of: ${validCurrencies.join(', ')}`);
+      }
+    }
+    
+    if (!poData.status || !poData.status.trim()) {
+      errors.push('Status is required');
+    } else {
+      const validStatuses = ['pending', 'approved', 'rejected', 'cancelled', 'completed', 'in_progress', 'planning'];
+      if (!validStatuses.includes(poData.status.trim().toLowerCase())) {
+        errors.push(`Status must be one of: ${validStatuses.join(', ')}`);
+      }
+    }
+    
+    // Items validation
+    if (!poData.items || !Array.isArray(poData.items) || poData.items.length === 0) {
+      errors.push('At least one item is required');
+    } else {
+      poData.items.forEach((item, index) => {
+        if (!item.sku || !item.sku.trim()) {
+          errors.push(`Item ${index + 1}: SKU is required`);
+        }
+        if (!item.quantity || isNaN(parseFloat(item.quantity)) || parseFloat(item.quantity) <= 0) {
+          errors.push(`Item ${index + 1}: Quantity must be a valid number greater than 0`);
+        }
+        
+        // Validate optional numeric fields if present
+        if (item.unit_price !== undefined && item.unit_price !== null) {
+          if (isNaN(parseFloat(item.unit_price)) || parseFloat(item.unit_price) < 0) {
+            errors.push(`Item ${index + 1}: Unit price must be a valid number >= 0`);
+          }
+        }
+        
+        if (item.total_price !== undefined && item.total_price !== null) {
+          if (isNaN(parseFloat(item.total_price)) || parseFloat(item.total_price) < 0) {
+            errors.push(`Item ${index + 1}: Total price must be a valid number >= 0`);
+          }
+        }
+        
+        if (item.target_price !== undefined && item.target_price !== null) {
+          if (isNaN(parseFloat(item.target_price)) || parseFloat(item.target_price) < 0) {
+            errors.push(`Item ${index + 1}: Target price must be a valid number >= 0`);
+          }
+        }
+      });
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
 };
 
 // WiFi Management API

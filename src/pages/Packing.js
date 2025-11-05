@@ -91,7 +91,7 @@ const Packing = () => {
       localStorage.removeItem('packingScanningData');
       
 
-      toast.info('Packing data cleared due to main data clear operation');
+      toast('Packing data cleared due to main data clear operation');
     };
 
     // Add event listener
@@ -345,7 +345,7 @@ const Packing = () => {
       setTrackingRecord(null);
       setPackingProgress(null);
       trackingIdInputRef.current?.focus();
-      toast.info('Form reset for new tracking ID');
+      toast('Form reset for new tracking ID');
     }
   };
 

@@ -19,7 +19,19 @@ import {
   Database,
   Volume2,
   VolumeX,
-  Book
+  Book,
+  FileText as FileTextIcon,
+  Clock,
+  DollarSign,
+  ShoppingCart,
+  ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  Warehouse,
+  ClipboardList,
+  Lock,
+  Calendar,
+  CheckCircle
 } from 'lucide-react';
 
 const Layout = () => {
@@ -28,111 +40,240 @@ const Layout = () => {
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSoundTest, setShowSoundTest] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({ 'OMS': true });
   const [audioStatus, setAudioStatus] = useState({
     supported: false,
     contextState: 'unknown',
     initialized: false
   });
 
-  // Navigation items with role-based access
-  const navigationItems = [
+  // Navigation structure with sections and role-based access
+  const navigationStructure = [
     {
-      name: 'Dashboard',
-      path: '/data-view',
-      icon: Database,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
+      name: 'OMS',
+      icon: ClipboardList,
+      sections: [
+        {
+          name: 'B2B',
+          items: [
+            {
+              name: 'PO Punching',
+              path: '/b2b-po-punching',
+              icon: FileTextIcon,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops'],
+            },
+            {
+              name: 'Dashboard',
+              path: '/b2b-dashboard',
+              icon: LayoutDashboard,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops'],
+            },
+            {
+              name: 'Pending PO',
+              path: '/b2b-pending-po',
+              icon: Clock,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops'],
+            },
+            {
+              name: 'Planning PO',
+              path: '/b2b-planning-po',
+              icon: Calendar,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops'],
+            },
+            {
+              name: 'Dispatch PO',
+              path: '/b2b-dispatch-po',
+              icon: Truck,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops'],
+            },
+            {
+              name: 'Delivered PO',
+              path: '/b2b-delivered-po',
+              icon: CheckCircle,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2b-ops', 'manager-b2b-ops'],
+            },
+          ],
+        },
+        {
+          name: 'B2C',
+          items: [
+            {
+              name: 'Dashboard',
+              path: '/data-view',
+              icon: LayoutDashboard,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+            },
+            {
+              name: 'Label Scanning',
+              path: '/label-scanning',
+              icon: Package,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+            },
+            {
+              name: 'Packing Scan',
+              path: '/packing',
+              icon: Package,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+            },
+            {
+              name: 'Dispatch Scan',
+              path: '/dispatch',
+              icon: Truck,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+            },
+            {
+              name: 'Cancel Shipment',
+              path: '/cancel-shipment',
+              icon: X,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+            },
+            {
+              name: 'Revoke',
+              path: '/revoke',
+              icon: Settings,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops'],
+            },
+            {
+              name: 'Data Upload',
+              path: '/data-upload',
+              icon: Upload,
+              roles: ['super_admin', 'developer', 'admin', 'admin-b2c-ops', 'manager-b2c-ops'],
+            },
+          ],
+        },
+      ],
     },
     {
-      name: 'Label',
-      path: '/label-scanning',
-      icon: Package,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
+      name: 'IMS',
+      icon: Warehouse,
+      items: [
+        {
+          name: 'Physical Stock',
+          path: '/ims-physical-stock',
+          icon: Package,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+        {
+          name: 'Sale Report',
+          path: '/ims-sale-report',
+          icon: BarChart3,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+        {
+          name: 'Offline Stock',
+          path: '/ims-offline-stock',
+          icon: Database,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+      ],
     },
     {
-      name: 'Packing',
-      path: '/packing',
-      icon: Package,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
-    },
-    {
-      name: 'Dispatch',
-      path: '/dispatch',
-      icon: Truck,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
-    },
-    {
-      name: 'Cancel Shipment',
-      path: '/cancel-shipment',
-      icon: X,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
-    },
-    {
-      name: 'Revoke',
-      path: '/revoke',
-      icon: Settings,
-      roles: ['super_admin', 'developer', 'admin'],
-    },
-    {
-      name: 'Data Upload',
-      path: '/data-upload',
-      icon: Upload,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
-    },
-    {
-      name: 'User Management',
-      path: '/user-management',
-      icon: Users,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
-    },
-    {
-      name: 'Approval Requests',
-      path: '/user-approval-requests',
-      icon: Shield,
-      roles: ['super_admin', 'developer', 'admin', 'manager'],
-    },
-    {
-      name: 'User Profile',
-      path: '/user-profile',
-      icon: User,
-      roles: ['super_admin', 'developer', 'admin', 'manager', 'executive'],
-    },
-    {
-      name: 'Catalogue',
-      path: '/catalogue',
+      name: 'CMS',
       icon: Book,
-      roles: ['super_admin', 'developer'],
+      items: [
+        {
+          name: 'Target',
+          path: '/catalogue-target-price',
+          icon: DollarSign,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+        {
+          name: 'Catalogue Listing',
+          path: '/catalogue-listing',
+          icon: Package,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+        {
+          name: 'Catalogue',
+          path: '/catalogue',
+          icon: Book,
+          roles: ['developer', 'super_admin', 'admin', 'b2b-admin-ops', 'b2b-manager-ops', 'b2c-admin-ops', 'b2c-manager-ops'],
+        },
+      ],
     },
     {
-      name: 'Integration',
-      path: '/integration',
+      name: 'Security',
+      icon: Lock,
+      items: [
+        {
+          name: 'User Management',
+          path: '/user-management',
+          icon: Users,
+          roles: ['developer', 'super_admin', 'b2b-admin-ops', 'b2c-admin-ops'],
+        },
+        {
+          name: 'Approval Request',
+          path: '/user-approval-requests',
+          icon: Shield,
+          roles: ['developer', 'super_admin', 'b2b-admin-ops', 'b2c-admin-ops'],
+        },
+        {
+          name: 'User Profile',
+          path: '/user-profile',
+          icon: User,
+          roles: ['super_admin', 'developer', 'admin', 'manager', 'executive', 'admin-b2b-ops', 'manager-b2b-ops', 'exc-b2b-ops', 'admin-b2c-ops', 'manager-b2c-ops', 'exc-b2c-ops'],
+        },
+      ],
+    },
+    {
+      name: 'Developer Only',
       icon: Settings,
-      roles: ['developer'],
-    },
-    {
-      name: 'Tracker Docs',
-      path: '/tracker-docs',
-      icon: FileText,
-      roles: ['developer'],
-    },
-    {
-      name: 'Monitoring',
-      path: '/logger',
-      icon: BarChart3,
-      roles: ['super_admin', 'developer'],
+      items: [
+        {
+          name: 'Monitoring',
+          path: '/logger',
+          icon: BarChart3,
+          roles: ['super_admin'],
+        },
+        {
+          name: 'Integration',
+          path: '/integration',
+          icon: Settings,
+          roles: ['developer', 'super_admin'],
+        },
+      ],
     },
   ];
 
-  // Filter navigation items based on user role
-  const filteredNavigation = navigationItems.filter(item => {
-    if (!user?.role) {
-      // Fallback: show all items if no role
-      return true;
-    }
-    return item.roles.includes(user.role);
-  });
+  // Toggle section expansion
+  const toggleSection = (sectionName) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionName]: !prev[sectionName],
+    }));
+  };
 
-  // Ensure we always have navigation items
-  const displayNavigation = filteredNavigation.length > 0 ? filteredNavigation : navigationItems;
+  // Filter navigation items based on user role
+  const filterNavigationByRole = (items) => {
+    if (!user?.role) {
+      return items;
+    }
+    return items.filter(item => item.roles.includes(user.role));
+  };
+
+  // Get flattened navigation for breadcrumb
+  const getFlattenedNavigation = () => {
+    const flattened = [];
+    navigationStructure.forEach(section => {
+      if (section.sections) {
+        section.sections.forEach(subSection => {
+          subSection.items.forEach(item => {
+            if (!user?.role || item.roles.includes(user.role)) {
+              flattened.push(item);
+            }
+          });
+        });
+      }
+      if (section.items) {
+        section.items.forEach(item => {
+          if (!user?.role || item.roles.includes(user.role)) {
+            flattened.push(item);
+          }
+        });
+      }
+    });
+    return flattened;
+  };
 
   // Get user's display role
   const getUserDisplayRole = () => {
@@ -239,39 +380,124 @@ const Layout = () => {
            </div>
 
            {/* Navigation */}
-           <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto bg-white">
-             {displayNavigation.length > 0 ? (
-               displayNavigation.map((item) => {
-                 const Icon = item.icon;
-                 const isActive = location.pathname === item.path;
-                 
-                 return (
-                   <button
-                     key={item.name}
-                     onClick={() => handleNavigation(item.path)}
-                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                       isActive
-                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg transform scale-105'
-                         : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 hover:shadow-md'
-                     }`}
-                   >
-                     <Icon className={`w-5 h-5 mr-3 ${
-                       isActive ? 'text-white' : 'text-gray-500 group-hover:text-blue-600'
-                     }`} />
-                     <span className="font-medium">{item.name}</span>
-                     {isActive && (
-                       <div className="ml-auto w-2 h-2 bg-white rounded-full opacity-80"></div>
-                     )}
-                   </button>
+           <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto bg-white">
+             {navigationStructure.map((section) => {
+               const SectionIcon = section.icon;
+               const sectionKey = section.name;
+               const isSectionExpanded = expandedSections[sectionKey];
+               
+               // Check if section has accessible items
+               let hasAccessibleItems = false;
+               if (section.sections) {
+                 hasAccessibleItems = section.sections.some(subSection => 
+                   subSection.items.some(item => !user?.role || item.roles.includes(user.role))
                  );
-               })
-             ) : (
-               <div className="px-4 py-3 text-sm text-gray-500 text-center bg-gray-50 rounded-lg">
-                 <Package className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                 <p>No accessible pages</p>
-                 <p className="text-xs text-gray-400 mt-1">Contact your administrator</p>
-               </div>
-             )}
+               } else if (section.items) {
+                 hasAccessibleItems = section.items.some(item => !user?.role || item.roles.includes(user.role));
+               }
+               
+               if (!hasAccessibleItems) return null;
+               
+               return (
+                 <div key={sectionKey} className="mb-2">
+                   {/* Section Header */}
+                   {section.sections ? (
+                     <button
+                       onClick={() => toggleSection(sectionKey)}
+                       className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                     >
+                       <div className="flex items-center">
+                         <SectionIcon className="w-4 h-4 mr-2 text-gray-600" />
+                         <span>{section.name}</span>
+                       </div>
+                       {isSectionExpanded ? (
+                         <ChevronDown className="w-4 h-4 text-gray-500" />
+                       ) : (
+                         <ChevronRight className="w-4 h-4 text-gray-500" />
+                       )}
+                     </button>
+                   ) : (
+                     <div className="px-4 py-2.5 flex items-center">
+                       <SectionIcon className="w-4 h-4 mr-2 text-gray-600" />
+                       <span className="text-sm font-semibold text-gray-700">{section.name}</span>
+                     </div>
+                   )}
+                   
+                   {/* Section Items */}
+                   {section.sections && isSectionExpanded && (
+                     <div className="ml-4 mt-1 space-y-1">
+                       {section.sections.map((subSection) => {
+                         const filteredSubItems = filterNavigationByRole(subSection.items);
+                         if (filteredSubItems.length === 0) return null;
+                         
+                         return (
+                           <div key={subSection.name} className="mb-2">
+                             <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                               {subSection.name}
+                             </div>
+                             <div className="space-y-1">
+                               {filteredSubItems.map((item) => {
+                                 const ItemIcon = item.icon;
+                                 const isActive = location.pathname === item.path;
+                                 
+                                 return (
+                                   <button
+                                     key={item.name}
+                                     onClick={() => handleNavigation(item.path)}
+                                     className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                                       isActive
+                                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
+                                         : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'
+                                     }`}
+                                   >
+                                     <ItemIcon className={`w-4 h-4 mr-2 ${
+                                       isActive ? 'text-white' : 'text-gray-500'
+                                     }`} />
+                                     <span className="flex-1 text-left">{item.name}</span>
+                                     {isActive && (
+                                       <div className="w-2 h-2 bg-white rounded-full"></div>
+                                     )}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   )}
+                   
+                   {section.items && (
+                     <div className="ml-4 mt-1 space-y-1">
+                       {filterNavigationByRole(section.items).map((item) => {
+                         const ItemIcon = item.icon;
+                         const isActive = location.pathname === item.path;
+                         
+                         return (
+                           <button
+                             key={item.name}
+                             onClick={() => handleNavigation(item.path)}
+                             className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                               isActive
+                                 ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
+                                 : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'
+                             }`}
+                           >
+                             <ItemIcon className={`w-4 h-4 mr-2 ${
+                               isActive ? 'text-white' : 'text-gray-500'
+                             }`} />
+                             <span className="flex-1 text-left">{item.name}</span>
+                             {isActive && (
+                               <div className="w-2 h-2 bg-white rounded-full"></div>
+                             )}
+                           </button>
+                         );
+                       })}
+                     </div>
+                   )}
+                 </div>
+               );
+             })}
            </nav>
 
            {/* Footer & Logout */}
@@ -354,7 +580,7 @@ const Layout = () => {
                {/* Breadcrumb */}
                <div className="flex items-center space-x-2">
                  <h2 className="text-lg font-semibold text-gray-900">
-                   {displayNavigation.find(item => item.path === location.pathname)?.name || 'Label Scanning'}
+                   {getFlattenedNavigation().find(item => item.path === location.pathname)?.name || 'Label Scanning'}
                  </h2>
                </div>
              </div>

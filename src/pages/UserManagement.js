@@ -48,7 +48,19 @@ const UserManagement = () => {
     { value: 'manager', label: 'Manager', level: 2, color: 'bg-blue-100 text-blue-800' },
     { value: 'admin', label: 'Admin', level: 3, color: 'bg-green-100 text-green-800' },
     { value: 'developer', label: 'Developer', level: 4, color: 'bg-purple-100 text-purple-800' },
-    { value: 'super_admin', label: 'Super Admin', level: 5, color: 'bg-red-100 text-red-800' }
+    { value: 'super_admin', label: 'Super Admin', level: 5, color: 'bg-red-100 text-red-800' },
+    // B2B Operations Roles
+    { value: 'exc-b2b-ops', label: 'Executive B2B Ops', level: 2, color: 'bg-indigo-100 text-indigo-800' },
+    { value: 'manager-b2b-ops', label: 'Manager B2B Ops', level: 3, color: 'bg-blue-100 text-blue-800' },
+    { value: 'admin-b2b-ops', label: 'Admin B2B Ops', level: 4, color: 'bg-green-100 text-green-800' },
+    { value: 'b2b-manager-ops', label: 'B2B Manager Ops', level: 3, color: 'bg-blue-100 text-blue-800' },
+    { value: 'b2b-admin-ops', label: 'B2B Admin Ops', level: 4, color: 'bg-green-100 text-green-800' },
+    // B2C Operations Roles
+    { value: 'exc-b2c-ops', label: 'Executive B2C Ops', level: 2, color: 'bg-indigo-100 text-indigo-800' },
+    { value: 'manager-b2c-ops', label: 'Manager B2C Ops', level: 3, color: 'bg-blue-100 text-blue-800' },
+    { value: 'admin-b2c-ops', label: 'Admin B2C Ops', level: 4, color: 'bg-green-100 text-green-800' },
+    { value: 'b2c-manager-ops', label: 'B2C Manager Ops', level: 3, color: 'bg-blue-100 text-blue-800' },
+    { value: 'b2c-admin-ops', label: 'B2C Admin Ops', level: 4, color: 'bg-green-100 text-green-800' }
   ];
 
   // Filter roles based on current user's level
@@ -462,9 +474,18 @@ const UserManagement = () => {
 
   // Permission checks - users can manage users at or below their level
   // Permission checking - User management accessible to all roles EXCEPT executive
-  const canManageUsers = currentUser?.role && ['manager', 'admin', 'developer', 'super_admin'].includes(currentUser.role);
-  const canDeleteUsers = currentUser?.role && ['admin', 'developer', 'super_admin'].includes(currentUser.role);
-  const canAssignRoles = currentUser?.role && ['admin', 'developer', 'super_admin'].includes(currentUser.role);
+  const canManageUsers = currentUser?.role && [
+    'manager', 'admin', 'developer', 'super_admin',
+    'admin-b2b-ops', 'admin-b2c-ops', 'b2b-admin-ops', 'b2c-admin-ops'
+  ].includes(currentUser.role);
+  const canDeleteUsers = currentUser?.role && [
+    'admin', 'developer', 'super_admin',
+    'admin-b2b-ops', 'admin-b2c-ops', 'b2b-admin-ops', 'b2c-admin-ops'
+  ].includes(currentUser.role);
+  const canAssignRoles = currentUser?.role && [
+    'admin', 'developer', 'super_admin',
+    'admin-b2b-ops', 'admin-b2c-ops', 'b2b-admin-ops', 'b2c-admin-ops'
+  ].includes(currentUser.role);
 
   // Filter users
   const filteredUsers = users.filter(user => {

@@ -3,11 +3,18 @@ import { Truck, CheckCircle, XCircle, Clock, Search, Package, Zap, Eye } from 'l
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { scanAPI, adminAPI } from '../services/api';
+import api from '../services/api';
 import { playSuccessSound, playErrorSound } from '../utils/soundUtils';
+import PackingPopup from '../components/PackingPopup';
 
 const Dispatch = () => {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('scanning');
+  
+  // Dispatched POs State
+  const [dispatchedPOs, setDispatchedPOs] = useState([]);
+  const [dispatchedPOsLoading, setDispatchedPOsLoading] = useState(false);
+  const [dispatchedPOsError, setDispatchedPOsError] = useState(null);
   
   // Dispatch Scanning State
   const [trackingId, setTrackingId] = useState('');
@@ -28,6 +35,10 @@ const Dispatch = () => {
   const [scanLogs, setScanLogs] = useState([]);
   const [showLogs, setShowLogs] = useState(true);
   
+  // Packing Popup State
+  const [showPackingPopup, setShowPackingPopup] = useState(false);
+  const [packingTrackingId, setPackingTrackingId] = useState('');
+  
   // Dispatch Courier Stats State
   const [dispatchCourierStats, setDispatchCourierStats] = useState({});
   const [dispatchCourierStatsLoading, setDispatchCourierStatsLoading] = useState(false);
@@ -35,6 +46,52 @@ const Dispatch = () => {
   // Refs for input focus
   const trackingIdInputRef = useRef(null);
   const pendingTrackingIdInputRef = useRef(null);
+
+  // Fetch dispatched POs
+  const fetchDispatchedPOs = async () => {
+    try {
+      setDispatchedPOsLoading(true);
+      setDispatchedPOsError(null);
+      
+      const response = await api.get('/gcs-po/po-list-test');
+      
+      if (response.data.ok && response.data.data.po_list) {
+        const allPOs = response.data.data.po_list;
+        
+        // Log all POs with their statuses for debugging
+        console.log('=== ALL POs DEBUG INFO ===');
+        allPOs.forEach((po, index) => {
+          console.log(`PO ${index + 1}:`, {
+            po_number: po.po_number || po.PO_Number,
+            status: po.status || po.Status,
+            has_dispatch_data: !!po.dispatch_data,
+            dispatch_data: po.dispatch_data
+          });
+        });
+        
+        // Filter POs with status 'dispatched' and ensure they have dispatch_data
+        const dispatched = allPOs.filter(po => 
+          (po.status === 'dispatched' || po.Status === 'dispatched') && po.dispatch_data
+        );
+        
+        setDispatchedPOs(dispatched);
+        console.log('=== FILTERED RESULTS ===');
+        console.log('Total POs in list:', allPOs.length);
+        console.log('Dispatched POs count:', dispatched.length);
+        console.log('Dispatched POs:', dispatched);
+        
+        // Show toast with debug info
+        toast.success(`Found ${dispatched.length} dispatched POs out of ${allPOs.length} total POs`);
+      } else {
+        setDispatchedPOsError('Failed to fetch dispatched POs');
+      }
+    } catch (error) {
+      console.error('Error fetching dispatched POs:', error);
+      setDispatchedPOsError('Failed to fetch dispatched POs');
+    } finally {
+      setDispatchedPOsLoading(false);
+    }
+  };
 
   // Performance monitoring state
   const [lastScanTime, setLastScanTime] = useState(null);
@@ -82,7 +139,7 @@ const Dispatch = () => {
       localStorage.removeItem('dispatchScanningData');
       
       console.log('🗑️ Dispatch: All dispatch data cleared');
-      toast.info('Dispatch data cleared due to main data clear operation');
+      toast('Dispatch data cleared due to main data clear operation');
     };
 
     // Add event listener
@@ -98,6 +155,13 @@ const Dispatch = () => {
   useEffect(() => {
     calculateDispatchCourierStats();
   }, []);
+
+  // Fetch dispatched POs when component mounts or when dispatched tab is active
+  useEffect(() => {
+    if (activeTab === 'dispatched') {
+      fetchDispatchedPOs();
+    }
+  }, [activeTab]);
 
   // Function to add scan logs to the table
   const addScanLog = (logData) => {
@@ -245,20 +309,28 @@ const Dispatch = () => {
     }));
   };
 
-  // Check current status before dispatch
+  // Check current status - ULTRA-FAST version
   const checkCurrentStatus = async (trackingId) => {
     try {
-      const response = await scanAPI.debugTracking({
-        tracking_id: trackingId.trim(),
-        user_id: user?.user_id
-      });
+      console.log(`⚡ ULTRA-FAST: Checking status for tracking ID: ${trackingId}`);
+      const startTime = performance.now();
       
-      if (response.data?.ok && response.data?.data) {
-        return response.data.data.status || 'unknown';
+      const response = await scanAPI.getCurrentStatus(trackingId.trim());
+      const checkTime = performance.now() - startTime;
+      
+      console.log(`⚡ Status check completed in ${checkTime.toFixed(2)}ms`);
+      console.log(`⚡ Status check response:`, response.data);
+      
+      if (response.data?.success) {
+        const status = response.data.status || 'unknown';
+        console.log(`⚡ ULTRA-FAST status: ${status} (${checkTime.toFixed(2)}ms)`);
+        return status;
       }
+      
+      console.log(`⚡ Status check failed:`, response.data?.message);
       return 'unknown';
     } catch (error) {
-      console.error('Failed to check status:', error);
+      console.error('⚡ ULTRA-FAST status check error:', error);
       return 'unknown';
     }
   };
@@ -313,7 +385,7 @@ const Dispatch = () => {
   // Pre-warm dispatch indexes for ultra-fast scanning
   const handlePrewarmDispatch = async () => {
     try {
-      toast.info('🚀 Pre-warming dispatch indexes for ultra-fast scanning...');
+      toast('🚀 Pre-warming dispatch indexes for ultra-fast scanning...');
       
       const response = await scanAPI.prewarmDispatch();
       
@@ -328,7 +400,110 @@ const Dispatch = () => {
     }
   };
 
-  // Handle Dispatch Scanning
+  // Handle packing popup close
+  const handlePackingPopupClose = () => {
+    setShowPackingPopup(false);
+    setPackingTrackingId('');
+    // Clear the tracking ID and focus back on input
+    setTrackingId('');
+    setTimeout(() => {
+      trackingIdInputRef.current?.focus();
+    }, 100);
+  };
+
+  // Handle packing completion
+  const handlePackingComplete = async (completedTrackingId, packingData) => {
+    console.log(`📦 Packing completed for ${completedTrackingId}:`, packingData);
+    
+    // Add success log
+    addScanLog({
+      type: 'success',
+      action: 'Packing Complete',
+      tracking_id: completedTrackingId,
+      g_code_ean: 'Multiple Items',
+      status: packingData.status,
+      message: `Packing completed successfully! Status: ${packingData.status}. Ready for dispatch.`,
+      user: user?.username || user?.user_id || 'Unknown'
+    });
+    
+    // Show success message
+    toast.success(`🎉 Packing completed for ${completedTrackingId}! Now ready for dispatch.`);
+    
+    // If the item is now fully packed, automatically try dispatch
+    if (packingData.status === 'packing_scanned') {
+      // Set the tracking ID and automatically attempt dispatch
+      setTrackingId(completedTrackingId);
+      
+      // Close the popup first
+      setShowPackingPopup(false);
+      setPackingTrackingId('');
+      
+      // Wait a moment then attempt dispatch
+      setTimeout(async () => {
+        toast('🚚 Attempting automatic dispatch...');
+        
+        try {
+          const response = await scanAPI.dispatchScan({
+            tracking_id: completedTrackingId,
+            user_id: user?.user_id
+          });
+          
+          if (response.data?.success) {
+            playSuccessSound();
+            toast.success(`🎉 ${response.data.message}`);
+            
+            addScanLog({
+              type: 'success',
+              action: 'Auto Dispatch',
+              tracking_id: completedTrackingId,
+              g_code_ean: 'N/A',
+              status: response.data.status,
+              message: `Automatic dispatch successful after packing: ${response.data.message}`,
+              user: user?.username || user?.user_id || 'Unknown'
+            });
+            
+            // Clear tracking ID and focus for next scan
+            setTrackingId('');
+            setTimeout(() => {
+              trackingIdInputRef.current?.focus();
+            }, 100);
+          } else {
+            playErrorSound();
+            toast.error(`Dispatch failed: ${response.data?.message}`);
+            
+            addScanLog({
+              type: 'error',
+              action: 'Auto Dispatch',
+              tracking_id: completedTrackingId,
+              g_code_ean: 'N/A',
+              status: 'Failed',
+              message: `Automatic dispatch failed: ${response.data?.message}`,
+              user: user?.username || user?.user_id || 'Unknown'
+            });
+          }
+        } catch (error) {
+          playErrorSound();
+          console.error('Auto dispatch error:', error);
+          toast.error(`Auto dispatch failed: ${error.response?.data?.detail || error.message}`);
+          
+          addScanLog({
+            type: 'error',
+            action: 'Auto Dispatch',
+            tracking_id: completedTrackingId,
+            g_code_ean: 'N/A',
+            status: 'Error',
+            message: `Auto dispatch error: ${error.response?.data?.detail || error.message}`,
+            user: user?.username || user?.user_id || 'Unknown'
+          });
+        }
+      }, 1000);
+    } else {
+      // Just close the popup and clear inputs
+      handlePackingPopupClose();
+    }
+  };
+
+  // Handle Dispatch Scanning - ULTRA-FAST version
   const handleDispatchScan = async () => {
     if (!trackingId.trim()) {
       toast.error('Please enter Tracking ID');
@@ -339,209 +514,61 @@ const Dispatch = () => {
     const startTime = performance.now();
 
     try {
-      // First check current status
-      const currentStatus = await checkCurrentStatus(trackingId);
-      console.log(`🔍 Current status for ${trackingId}: ${currentStatus}`);
+      console.log(`⚡ ULTRA-FAST DISPATCH: Starting for ${trackingId}`);
       
-      // Check if item can be dispatched
+      // Ultra-fast status check
+      const currentStatus = await checkCurrentStatus(trackingId);
+      const statusCheckTime = performance.now() - startTime;
+      
+      console.log(`⚡ Status check: ${currentStatus} (${statusCheckTime.toFixed(2)}ms)`);
+      
+      // Fast status handling with minimal logging
       if (currentStatus === 'dispatch_scanned') {
-        toast.error(`Item ${trackingId} has already been dispatched and cannot be dispatched again.`);
-        addScanLog({
-          type: 'error',
-          action: 'Dispatch Scan',
-          tracking_id: trackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'Already Dispatched',
-          message: `Item ${trackingId} has already been dispatched and cannot be dispatched again. Current status: ${currentStatus}`,
-          user: user?.username || user?.user_id || 'Unknown'
-        });
+        toast.error(`Already dispatched: ${trackingId}`);
         setScanningLoading(false);
         setTrackingId('');
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
+        setTimeout(() => trackingIdInputRef.current?.focus(), 50);
         return;
       }
       
       if (currentStatus === 'label_scanned') {
-        toast.error(`Item ${trackingId} needs to be packed first before dispatch. Current status: ${currentStatus}`);
-        addScanLog({
-          type: 'error',
-          action: 'Dispatch Scan',
-          tracking_id: trackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'Needs Packing',
-          message: `Item ${trackingId} needs to be packed first before dispatch. Current status: ${currentStatus}`,
-          user: user?.username || user?.user_id || 'Unknown'
-        });
+        console.log(`⚡ ULTRA-FAST: Showing packing popup for ${trackingId}`);
+        toast(`⚡ Packing needed: ${trackingId}`);
+        setPackingTrackingId(trackingId.trim());
+        setShowPackingPopup(true);
         setScanningLoading(false);
-        setTrackingId('');
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
         return;
       }
       
       if (currentStatus === 'unlabeled') {
-        toast.error(`Item ${trackingId} needs to be labeled first before dispatch. Current status: ${currentStatus}`);
-        addScanLog({
-          type: 'error',
-          action: 'Dispatch Scan',
-          tracking_id: trackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'Needs Labeling',
-          message: `Item ${trackingId} needs to be labeled first before dispatch. Current status: ${currentStatus}`,
-          user: user?.username || user?.user_id || 'Unknown'
-        });
+        toast.error(`Needs labeling: ${trackingId}`);
         setScanningLoading(false);
         setTrackingId('');
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
+        setTimeout(() => trackingIdInputRef.current?.focus(), 50);
         return;
       }
-      
-      // Call real dispatch scan API with performance monitoring
-      const response = await scanAPI.dispatchScan({
-        tracking_id: trackingId.trim(),
-        user_id: user?.user_id
-      });
-      
-      const endTime = performance.now();
-      const scanTime = endTime - startTime;
-      
-      // Update performance metrics
-      setLastScanTime(scanTime);
-      if (scanTime < 100) {
-        setPerformanceMode('ultra-fast');
-      } else if (scanTime < 500) {
-        setPerformanceMode('fast');
-      } else {
-        setPerformanceMode('normal');
-      }
 
-      const isSuccess = response.data?.success;
-      const isMultiSku = false; // Dispatch doesn't have multi-SKU concept like packing
-
-      // Update Performance KPIs
-      updateGlobalKPIs(isSuccess, scanTime, isMultiSku);
-
-      if (isSuccess) {
-        toast.success(`Dispatch scan successful for ${trackingId} (${scanTime.toFixed(0)}ms)`);
-        
-        // Add to success scan details
-        addScanDetail('successScans', {
-          trackingId: trackingId.trim(),
-          responseTime: scanTime,
-          status: response.data?.status || 'Dispatched'
-        });
-        
-        // Play success sound
-        try {
-          await playSuccessSound();
-        } catch (error) {
-          console.error('Sound playback error:', error);
-        }
-        
-        // ✅ SUCCESS LOGGER: Add to table and console
-        addScanLog({
-          type: 'success',
-          action: 'Dispatch Scan',
-          tracking_id: trackingId.trim(),
-          g_code_ean: 'N/A',
-          status: response.data?.status || 'Dispatched',
-          message: response.data?.message || `Dispatch scan successful for ${trackingId}`,
-          user: user?.username || user?.user_id || 'Unknown',
-          scanTime: scanTime.toFixed(0)
-        });
-        
+      if (currentStatus === 'unknown') {
+        toast.error(`Unknown status: ${trackingId}`);
+        setScanningLoading(false);
         setTrackingId('');
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
-      } else {
-        toast.error(response.data?.message || 'Dispatch scan failed');
-        
-        // Add to error scan details
-        addScanDetail('errorScans', {
-          trackingId: trackingId.trim(),
-          error: response.data?.message || 'Dispatch scan failed',
-          responseTime: scanTime
-        });
-        
-        // Play error sound for scanning error
-        try {
-          await playErrorSound();
-        } catch (error) {
-          console.error('Sound playback error:', error);
-        }
-        
-        // ❌ ERROR LOGGER: Add to table and console
-        addScanLog({
-          type: 'error',
-          action: 'Dispatch Scan',
-          tracking_id: trackingId.trim(),
-          g_code_ean: 'N/A',
-          status: 'Failed',
-          message: response.data?.message || 'Dispatch scan failed',
-          user: user?.username || user?.user_id || 'Unknown'
-        });
-        
-        setTrackingId('');
-        setTimeout(() => {
-          trackingIdInputRef.current?.focus();
-        }, 100);
+        setTimeout(() => trackingIdInputRef.current?.focus(), 50);
+        return;
       }
-    } catch (error) {
-      const endTime = performance.now();
-      const scanTime = endTime - startTime;
-      
-      // Update Performance KPIs for network error
-      updateGlobalKPIs(false, scanTime, false);
-      
-      // Extract detailed error message from backend
-      let errorMessage = 'Dispatch scan failed';
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Add to error scan details
-      addScanDetail('errorScans', {
-        trackingId: trackingId.trim(),
-        error: errorMessage,
-        responseTime: scanTime
-      });
-      
-      toast.error(errorMessage);
-      
-      // Play error sound for network/API errors
-      try {
-        await playErrorSound();
-      } catch (error) {
-        console.error('Sound playback error:', error);
-      }
-      
-      // ❌ NETWORK/API ERROR LOGGER: Add to table and console
-      addScanLog({
-        type: 'error',
-        action: 'Dispatch Scan',
-        tracking_id: trackingId.trim(),
-        g_code_ean: 'N/A',
-        status: error.response?.status === 400 ? 'Bad Request' : 'Network Error',
-        message: errorMessage,
-        user: user?.username || user?.user_id || 'Unknown'
-      });
-      
-      setTrackingId('');
-      setTimeout(() => {
-        trackingIdInputRef.current?.focus();
-      }, 100);
-    } finally {
+
+      // Any other status
+      toast.error(`Cannot dispatch: ${currentStatus}`);
       setScanningLoading(false);
+      setTrackingId('');
+      setTimeout(() => trackingIdInputRef.current?.focus(), 50);
+      return;
+    } catch (error) {
+      playErrorSound();
+      console.error('⚡ ULTRA-FAST DISPATCH ERROR:', error);
+      toast.error('Dispatch scan failed');
+      setScanningLoading(false);
+      setTrackingId('');
+      setTimeout(() => trackingIdInputRef.current?.focus(), 50);
     }
   };
 
@@ -958,6 +985,20 @@ const Dispatch = () => {
                     <Clock className="w-4 h-4 inline mr-2" />
                     Dispatch Pending
                   </button>
+                  <button
+                    onClick={() => {
+                      console.log('Clicked Dispatched POs tab');
+                      setActiveTab('dispatched');
+                    }}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'dispatched'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <CheckCircle className="w-4 h-4 inline mr-2" />
+                    Dispatched POs
+                  </button>
                 </nav>
               </div>
 
@@ -1218,6 +1259,181 @@ const Dispatch = () => {
                         )}
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Dispatched POs Tab */}
+                {activeTab === 'dispatched' && (
+                  <div className="space-y-6">
+                    {console.log('Rendering Dispatched POs tab content')}
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">Dispatched POs</h2>
+                      <p className="text-sm text-gray-600">
+                        View all dispatched purchase orders
+                      </p>
+                      <div className="mt-3">
+                        <button
+                          onClick={fetchDispatchedPOs}
+                          className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          title="Refresh dispatched POs list"
+                        >
+                          🔄 Refresh List
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Loading State */}
+                    {dispatchedPOsLoading && (
+                      <div className="text-center py-8">
+                        <div className="spinner w-8 h-8 mx-auto mb-4"></div>
+                        <p className="text-gray-500">Loading dispatched POs...</p>
+                      </div>
+                    )}
+
+                    {/* Error State */}
+                    {dispatchedPOsError && (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <XCircle className="w-8 h-8 text-red-600" />
+                        </div>
+                        <p className="text-red-600 mb-4">{dispatchedPOsError}</p>
+                        <button
+                          onClick={fetchDispatchedPOs}
+                          className="px-4 py-2 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Debug Information */}
+                    {!dispatchedPOsLoading && !dispatchedPOsError && (
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">Debug Information</h4>
+                        <div className="text-xs text-blue-800 space-y-1">
+                          <p>• Dispatched POs found: <span className="font-bold">{dispatchedPOs.length}</span></p>
+                          <p>• Filter criteria: (status === 'dispatched' OR Status === 'dispatched') AND dispatch_data exists</p>
+                          <p>• Check browser console for detailed PO data and filtering results</p>
+                          <p>• If you see "dispatched" in All PO but not here, the PO might be missing dispatch_data</p>
+                        </div>
+                        <div className="mt-2 text-xs text-blue-700">
+                          <strong>Note:</strong> This page shows POs dispatched through the GCS PO system. 
+                          The B2B Dispatch page uses a different system.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dispatched POs List */}
+                    {!dispatchedPOsLoading && !dispatchedPOsError && (
+                      <div className="space-y-4">
+                        {dispatchedPOs.length === 0 ? (
+                          <div className="text-center py-8">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Package className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <p className="text-gray-500">No dispatched POs found</p>
+                            <p className="text-sm text-gray-400 mt-2">
+                              POs will appear here once they are dispatched from the PO Punching page
+                            </p>
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <p className="text-sm text-yellow-800">
+                                <strong>Troubleshooting:</strong> If you see "dispatched" status in All PO but not here, 
+                                the PO might be missing dispatch_data. Check the PO details to ensure dispatch information was properly saved.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {dispatchedPOs.map((po, index) => (
+                              <div key={po.po_number || index} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                      <CheckCircle className="w-5 h-5 text-green-600" />
+                                    </div>
+                                    <div>
+                                      <h3 className="font-semibold text-gray-900">{po.po_number}</h3>
+                                      <p className="text-sm text-gray-500">
+                                        Dispatched on {po.dispatch_data?.dispatch_date || 'Unknown date'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Dispatched
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Dispatch Details */}
+                                {po.dispatch_data && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-100">
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-700">Courier</p>
+                                      <p className="text-sm text-gray-600">{po.dispatch_data.courier || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-700">Dispatched By</p>
+                                      <p className="text-sm text-gray-600">{po.dispatch_data.dispatched_by || 'N/A'}</p>
+                                    </div>
+                                    {po.dispatch_data.vehicle_no && (
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-700">Vehicle No.</p>
+                                        <p className="text-sm text-gray-600">{po.dispatch_data.vehicle_no}</p>
+                                      </div>
+                                    )}
+                                    {po.dispatch_data.waybill_no && (
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-700">Waybill No.</p>
+                                        <p className="text-sm text-gray-600">{po.dispatch_data.waybill_no}</p>
+                                      </div>
+                                    )}
+                                    {po.dispatch_data.e_waybill_no && (
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-700">E-waybill No.</p>
+                                        <p className="text-sm text-gray-600">{po.dispatch_data.e_waybill_no}</p>
+                                      </div>
+                                    )}
+                                    {po.dispatch_data.appointment_date && (
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-700">Appointment Date</p>
+                                        <p className="text-sm text-gray-600">{po.dispatch_data.appointment_date}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Dispatch Quantities */}
+                                {po.dispatch_data?.dispatch_qty && Object.keys(po.dispatch_data.dispatch_qty).length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Dispatch Quantities</p>
+                                    <div className="space-y-1">
+                                      {Object.entries(po.dispatch_data.dispatch_qty).map(([sku, qty]) => (
+                                        <div key={sku} className="flex justify-between text-sm">
+                                          <span className="text-gray-600">{sku}</span>
+                                          <span className="font-medium text-gray-900">{qty}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Notes */}
+                                {po.dispatch_data?.notes && (
+                                  <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <p className="text-sm font-medium text-gray-700 mb-1">Notes</p>
+                                    <p className="text-sm text-gray-600">{po.dispatch_data.notes}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1651,8 +1867,17 @@ const Dispatch = () => {
           </div>
         </div>
       )}
+
+      {/* Packing Popup */}
+      <PackingPopup
+        isOpen={showPackingPopup}
+        onClose={handlePackingPopupClose}
+        initialTrackingId={packingTrackingId}
+        onPackingComplete={handlePackingComplete}
+      />
     </div>
   );
 };
 
 export default Dispatch;
+

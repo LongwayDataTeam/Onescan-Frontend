@@ -72,7 +72,7 @@ const RevokePage = () => {
       localStorage.removeItem('revokePageData');
       
       console.log('🗑️ Revoke: All revoke data cleared');
-      toast.info('Revoke data cleared due to main data clear operation');
+      toast('Revoke data cleared due to main data clear operation');
     };
 
     const handleRefreshData = (event) => {
